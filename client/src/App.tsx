@@ -13,7 +13,8 @@ import Admin from "./pages/Admin";
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Championship} />
+      <Route path={"/"} component={Home} />
+      <Route path={"/championship"} component={Championship} />
       <Route path={"/player/:name"} component={PlayerDetail} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />
