@@ -1,0 +1,22 @@
+{
+  "name": "liga-tucurui-extraction-scripts",
+  "version": "1.0.0",
+  "description": "Scripts para extrair dados de partidas do FACEIT",
+  "type": "module",
+  "scripts": {
+    "extract": "node extract-faceit-data.mjs",
+    "extract:help": "node extract-faceit-data.mjs"
+  },
+  "keywords": [
+    "faceit",
+    "cs2",
+    "extraction",
+    "api"
+  ],
+  "author": "Liga Tucuruí",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.0"
+  },
+  "devDependencies": {}
+}
