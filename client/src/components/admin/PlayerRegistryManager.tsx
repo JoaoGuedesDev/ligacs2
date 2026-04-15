@@ -4,6 +4,7 @@ import { Archive, Plus, Save, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useChampionshipConfig } from "@/lib/championshipConfig";
+import { type PlayerRankingData } from "@/data/championship";
 import {
   addPlayerAlias,
   archivePlayerProfile,
@@ -31,8 +32,14 @@ export default function PlayerRegistryManager() {
 
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerAlias, setNewPlayerAlias] = useState("");
+  const [newPlayerPote, setNewPlayerPote] = useState<number>(5);
   const [newPotName, setNewPotName] = useState("");
   const [draftAliases, setDraftAliases] = useState<Record<string, string>>({});
+
+  const getInitialScoreForPote = (pote: number) => {
+    const values: Record<number, number> = { 1: 85, 2: 75, 3: 65, 4: 55, 5: 45 };
+    return values[pote] ?? 50;
+  };
 
   return (
     <div className="space-y-6">
@@ -41,7 +48,7 @@ export default function PlayerRegistryManager() {
           <UserRound className="w-4 h-4 text-amber-400" />
           <h3 className="font-bold text-white">Cadastro mestre de jogadores</h3>
         </div>
-        <div className="grid md:grid-cols-[1fr_1fr_auto] gap-3">
+        <div className="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-3">
           <input
             value={newPlayerName}
             onChange={(e) => setNewPlayerName(e.target.value)}
@@ -54,20 +61,65 @@ export default function PlayerRegistryManager() {
             placeholder="Nick FACEIT inicial ou alias"
             className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm"
           />
+          <select
+            value={newPlayerPote}
+            onChange={(e) => setNewPlayerPote(Number(e.target.value))}
+            className="bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm"
+          >
+            <option value={1}>Pote 1 (Elite)</option>
+            <option value={2}>Pote 2 (Alto)</option>
+            <option value={3}>Pote 3 (Competitivo)</option>
+            <option value={4}>Pote 4 (Intermediário)</option>
+            <option value={5}>Pote 5 (Base)</option>
+          </select>
           <Button
             className="bg-amber-500 text-black font-bold"
             onClick={() => {
               if (!newPlayerName.trim()) return;
-              saveConfig(setConfig, (prev) =>
-                upsertPlayerProfile(prev, {
-                  displayName: newPlayerName.trim(),
+              const displayName = newPlayerName.trim();
+              const defaultPotId = `pot_${newPlayerPote}`;
+              const currentScore = getInitialScoreForPote(newPlayerPote);
+              const rankingEntry: PlayerRankingData = {
+                currentScore,
+                pote: newPlayerPote,
+                manualPote: true,
+                scoreHistory: [currentScore],
+                poteHistory: [newPlayerPote],
+                movement: "→",
+                scoreChange: 0,
+                aliases: newPlayerAlias.trim() ? [newPlayerAlias.trim()] : [],
+                totalStats: {
+                  matches: 0,
+                  kills: 0,
+                  deaths: 0,
+                  assists: 0,
+                  avgRating: 0,
+                  avgADR: 0,
+                  avgRWS: 0,
+                  avgHS: 0,
+                },
+              };
+
+              setConfig((prev) => {
+                const next = upsertPlayerProfile(prev, {
+                  displayName,
                   alias: newPlayerAlias.trim() || undefined,
                   faceitNickname: newPlayerAlias.trim() || undefined,
-                  defaultPotId: "sem_pote",
-                }),
-              );
+                  defaultPotId,
+                });
+
+                return {
+                  ...next,
+                  playerRankings: {
+                    ...next.playerRankings,
+                    [displayName]: rankingEntry,
+                  },
+                };
+              });
+
               setNewPlayerName("");
               setNewPlayerAlias("");
+              setNewPlayerPote(5);
             }}
           >
             <Plus className="w-4 h-4 mr-2" />

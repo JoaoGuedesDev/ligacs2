@@ -99,6 +99,7 @@ export interface PlayerRankingData {
   movement: "↑" | "↓" | "→";
   scoreChange: number;
   aliases?: string[]; // Nomes alternativos no Faceit
+  manualPote?: boolean;
   totalStats?: {
     matches: number;
     kills: number;
@@ -109,6 +110,63 @@ export interface PlayerRankingData {
     avgRWS: number;
     avgHS: number;
   };
+}
+
+export const POT_RANGES = [
+  { pote: 1, minScore: 80, maxScore: 999 },
+  { pote: 2, minScore: 70, maxScore: 79 },
+  { pote: 3, minScore: 60, maxScore: 69 },
+  { pote: 4, minScore: 50, maxScore: 59 },
+  { pote: 5, minScore: 0, maxScore: 49 },
+] as const;
+
+export const POTE_EXPECTED_RATING: Record<number, number> = {
+  1: 1.2,
+  2: 1.1,
+  3: 1.0,
+  4: 0.95,
+  5: 0.9,
+};
+
+export type PerformanceLevel = "muito acima" | "acima" | "neutro" | "abaixo" | "muito abaixo";
+
+export interface PlayerRoundPerformanceInput {
+  nickname: string;
+  current_points: number;
+  current_pot: number;
+  rating: number;
+  adr: number;
+  kd: number;
+  rws: number;
+  mvps: number;
+  kills: number;
+  deaths: number;
+}
+
+export interface PlayerRoundPerformanceResult {
+  nickname: string;
+  old_points: number;
+  new_points: number;
+  delta: number;
+  old_pot: number;
+  new_pot: number;
+  performance_level: PerformanceLevel;
+  analysis: string;
+  performance_score: number;
+  expected_rating: number;
+}
+
+export function getPoteFromScore(score: number): number {
+  for (const range of POT_RANGES) {
+    if (score >= range.minScore && score <= range.maxScore) {
+      return range.pote;
+    }
+  }
+  return 5;
+}
+
+export function getExpectedRatingForPote(pote: number): number {
+  return POTE_EXPECTED_RATING[pote] ?? POTE_EXPECTED_RATING[5];
 }
 
 export interface ChampionshipConfig {

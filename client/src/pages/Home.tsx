@@ -1,47 +1,235 @@
-import { Trophy, Star, Zap, Skull, TrendingUp, Target, Shield, Sword, MousePointer2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Trophy, Star, Zap, Skull, TrendingUp, Target, Sword, Save, Trash2 } from "lucide-react";
 import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { calculateStandings } from "@/lib/rankingSystem";
-import { useCurrentChampionshipData } from "@/lib/championshipConfig";
+import { useChampionshipConfig, useCurrentChampionshipData } from "@/lib/championshipConfig";
+import { type PlayerProfile } from "@/lib/playerRegistry";
+import type { Standings, Team } from "@/data/championship";
 
 export default function Home() {
-  const { config, matches, playerRankings, teams } = useCurrentChampionshipData();
+  const { config, setConfig } = useChampionshipConfig();
+  const { matches, playerRankings, teams } = useCurrentChampionshipData();
   const standings = calculateStandings(matches, teams, config.rules);
-  const pots = [
-    { title: "POTE 1", subtitle: "ELITE (80+)", icon: Trophy, color: "from-yellow-600 to-yellow-400", min: 80, max: 200 },
-    { title: "POTE 2", subtitle: "ALTO NÍVEL (70–79)", icon: Star, color: "from-blue-600 to-blue-400", min: 70, max: 79 },
-    { title: "POTE 3", subtitle: "COMPETITIVO (60–69)", icon: Zap, color: "from-purple-600 to-purple-400", min: 60, max: 69 },
-    { title: "POTE 4", subtitle: "INTERMEDIÁRIO (50–59)", icon: Zap, color: "from-cyan-600 to-cyan-400", min: 50, max: 59 },
-    { title: "POTE 5", subtitle: "BASE (≤49)", icon: Skull, color: "from-red-600 to-red-400", min: 0, max: 49 },
-  ].map((pot) => {
-    const potPlayers = Object.entries(playerRankings)
-      .filter(([_, data]: [string, any]) => data.currentScore >= pot.min && data.currentScore <= pot.max)
-      .map(([name, data]: [string, any]) => {
-        let totalRating = 0;
-        let matchCount = 0;
-        matches.forEach((m) => {
-          const p = [...m.team1Players, ...m.team2Players].find((tp) => tp.name === name);
-          if (p) {
-            totalRating += p.rating;
-            matchCount++;
-          }
-        });
-        return {
-          name,
-          initial: data.scoreHistory?.[0] || data.currentScore,
-          current: data.currentScore,
-          rating: matchCount > 0 ? totalRating / matchCount : 0,
-          status: data.movement === "↑" ? "subindo" : data.movement === "↓" ? "em risco" : "estável",
-        };
+
+  // ========== NOVA LÓGICA DE POTES BASEADA NO CAMPO "pote" ==========
+  const potsMap = new Map<number, {
+    title: string;
+    subtitle: string;
+    icon: any;
+    color: string;
+    players: any[];
+  }>();
+
+  const potConfigs = [
+    { title: "POTE 1", subtitle: "ELITE", icon: Trophy, color: "from-yellow-600 to-yellow-400" },
+    { title: "POTE 2", subtitle: "ALTO NÍVEL", icon: Star, color: "from-blue-600 to-blue-400" },
+    { title: "POTE 3", subtitle: "COMPETITIVO", icon: Zap, color: "from-purple-600 to-purple-400" },
+    { title: "POTE 4", subtitle: "INTERMEDIÁRIO", icon: Zap, color: "from-cyan-600 to-cyan-400" },
+    { title: "POTE 5", subtitle: "BASE", icon: Skull, color: "from-red-600 to-red-400" },
+  ];
+
+  Object.entries(playerRankings).forEach(([name, data]: [string, any]) => {
+    const pote = data.pote || 0;
+    if (pote === 0) return;
+
+    if (!potsMap.has(pote)) {
+      const config = potConfigs[pote - 1] || {
+        title: `POTE ${pote}`,
+        subtitle: `TIER ${pote}`,
+        icon: Zap,
+        color: "from-gray-600 to-gray-400"
+      };
+      potsMap.set(pote, {
+        ...config,
+        players: []
       });
-    return { ...pot, players: potPlayers };
+    }
+
+    // Calcular rating médio do jogador
+    let totalRating = 0;
+    let matchCount = 0;
+    matches.forEach((m) => {
+      const p = [...m.team1Players, ...m.team2Players].find((tp) => tp.name === name);
+      if (p) {
+        totalRating += p.rating;
+        matchCount++;
+      }
+    });
+
+    potsMap.get(pote)!.players.push({
+      name,
+      initial: data.scoreHistory?.[0] || data.currentScore,
+      current: data.currentScore,
+      rating: matchCount > 0 ? totalRating / matchCount : 0,
+      status: data.movement === "↑" ? "subindo" : data.movement === "↓" ? "em risco" : "estável",
+    });
   });
-  // Get latest match stats (The very last match in the array)
+
+  const pots = Array.from(potsMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([poteNum, data]) => ({
+      title: data.title,
+      subtitle: data.subtitle,
+      icon: data.icon,
+      color: data.color,
+      players: data.players.sort((a, b) => b.current - a.current)
+    }));
+  // ========== FIM DA NOVA LÓGICA ==========
+
+  const [teamDraft, setTeamDraft] = useState<Team[]>(config.teams);
+  const [profileDraft, setProfileDraft] = useState<PlayerProfile[]>(Object.values(config.playerProfiles ?? {}));
+  const [standingsDraft, setStandingsDraft] = useState<Standings[]>(config.standings.length > 0 ? config.standings : calculateStandings(matches, teams, config.rules));
+  const [newTeamName, setNewTeamName] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  useEffect(() => {
+    setTeamDraft(config.teams);
+    setProfileDraft(Object.values(config.playerProfiles ?? {}));
+    setStandingsDraft(config.standings.length > 0 ? config.standings : calculateStandings(config.matches, config.teams, config.rules));
+  }, [config]);
+
+  const availableProfiles = profileDraft.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  const handleAddTeam = () => {
+    const trimmed = newTeamName.trim();
+    if (!trimmed) return;
+
+    setTeamDraft((prev) => [
+      ...prev,
+      {
+        id: `team_${Date.now()}`,
+        name: trimmed,
+        shortName: trimmed.slice(0, 3).toUpperCase(),
+        logo: "",
+        color: "",
+        accentColor: "",
+        players: [],
+      },
+    ]);
+    setNewTeamName("");
+  };
+
+  const handleSaveConfig = () => {
+    const updatedProfiles = profileDraft.map((profile) => ({
+      ...profile,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    const profileIdToOldName = Object.values(config.playerProfiles ?? {}).reduce(
+      (acc, profile) => {
+        acc.set(profile.id, profile.displayName);
+        return acc;
+      },
+      new Map<string, string>(),
+    );
+
+    const nameMap = new Map<string, string>(
+      updatedProfiles.map((profile) => [profileIdToOldName.get(profile.id) ?? profile.displayName, profile.displayName]),
+    );
+
+    const updatedTeams = teamDraft.map((team) => ({
+      ...team,
+      players: (team.players ?? []).map((playerName) => nameMap.get(playerName) ?? playerName),
+    }));
+
+    setConfig({
+      ...config,
+      teams: updatedTeams,
+      playerProfiles: Object.fromEntries(updatedProfiles.map((profile) => [profile.id, profile])),
+      standings: standingsDraft,
+    });
+
+    setSaveMessage("Alterações salvas com sucesso!");
+    setTimeout(() => setSaveMessage(""), 4000);
+  };
+
+  const handleTeamPlayerToggle = (teamId: string, profileName: string) => {
+    setTeamDraft((prev) => prev.map((team) => {
+      if (team.id !== teamId) return team;
+      const players = new Set(team.players ?? []);
+      if (players.has(profileName)) {
+        players.delete(profileName);
+      } else {
+        players.add(profileName);
+      }
+      return { ...team, players: Array.from(players) };
+    }));
+  };
+
+  const handleRemoveTeam = (teamId: string) => {
+    setTeamDraft((prev) => prev.filter((team) => team.id !== teamId));
+  };
+
+  const handleDeleteMatch = (matchId: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta partida?")) return;
+    setConfig((prev) => ({
+      ...prev,
+      matches: prev.matches.filter((match) => match.id !== matchId),
+    }));
+  };
+
+  const handleStandingsChange = (teamName: string, field: keyof Standings, value: number) => {
+    setStandingsDraft((prev) => prev.map((standing) => {
+      if (standing.team !== teamName) return standing;
+      return { ...standing, [field]: value };
+    }));
+  };
+
+  const handleResetStandings = () => {
+    const autoStandings = calculateStandings(config.matches, config.teams, config.rules);
+    setStandingsDraft(autoStandings);
+    setConfig((prev) => ({ ...prev, standings: [] }));
+  };
+
+  const handleProfileChange = (playerId: string, field: keyof PlayerProfile, value: string | boolean) => {
+    setProfileDraft((prev) => prev.map((profile) => {
+      if (profile.id !== playerId) return profile;
+      if (field === "aliases" && typeof value === "string") {
+        return {
+          ...profile,
+          aliases: value.split(",").map((alias) => alias.trim()).filter(Boolean),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return {
+        ...profile,
+        [field]: value,
+        updatedAt: new Date().toISOString(),
+      } as PlayerProfile;
+    }));
+  };
+
+  const availablePlayersByTeam = (team: Team) => {
+    return availableProfiles.filter((profile) => !(team.players ?? []).includes(profile.displayName));
+  };
+
+  const displayStandings = standingsDraft.length > 0 ? standingsDraft : standings;
+
+  const teamSummary = useMemo(() => {
+    return displayStandings.map((standing) => {
+      const teamMatches = matches.filter((match) => match.team1 === standing.team || match.team2 === standing.team);
+      const totalKills = teamMatches.reduce((sum, match) => sum + (match.team1 === standing.team ? match.team1Stats.totalKills : match.team2Stats.totalKills), 0);
+      const totalDeaths = teamMatches.reduce((sum, match) => sum + (match.team1 === standing.team ? match.team1Stats.totalDeaths : match.team2Stats.totalDeaths), 0);
+      const avgRating = teamMatches.reduce((sum, match) => sum + (match.team1 === standing.team ? match.team1Stats.teamAvgRating : match.team2Stats.teamAvgRating), 0) / Math.max(teamMatches.length, 1);
+      const avgADR = teamMatches.reduce((sum, match) => sum + (match.team1 === standing.team ? match.team1Stats.avgADR : match.team2Stats.avgADR), 0) / Math.max(teamMatches.length, 1);
+      return {
+        ...standing,
+        totalKills,
+        totalDeaths,
+        avgRating,
+        avgADR,
+      };
+    });
+  }, [displayStandings, matches]);
+
+  // Restante do código permanece igual (latestMatch, stats, etc.)
   const latestMatch = matches[matches.length - 1];
   if (!latestMatch) return <div className="p-8">Sem partidas cadastradas no Admin.</div>;
+
   const latestMatches = [latestMatch];
-  
-  // Calculate aggregate stats for latest matches
   const latestStats = latestMatches.reduce((acc, m) => {
     acc.team1.name = m.team1;
     acc.team2.name = m.team2;
@@ -57,7 +245,6 @@ export default function Home() {
     team2: { name: "", score: 0, kills: 0, adr: 0 } 
   });
 
-  // Get highlights from all players
   const allPlayersPerformance = (() => {
     const players: Record<string, { name: string, rating: number, matches: number, adr: number, rws: number }> = {};
     matches.forEach(m => {
@@ -77,13 +264,13 @@ export default function Home() {
     })).sort((a, b) => b.rating - a.rating);
   })();
 
-  // Get MVP and highlights from the latest match
   const latestMatchPlayers = [...latestMatch.team1Players, ...latestMatch.team2Players];
   const roundMVP = [...latestMatchPlayers].sort((a, b) => b.rws - a.rws)[0];
   const roundTopRating = [...latestMatchPlayers].sort((a, b) => b.rating - a.rating)[0];
   const roundTopADR = [...latestMatchPlayers].sort((a, b) => b.adr - a.adr)[0];
 
-  return (    <div className="min-h-screen bg-background text-foreground">
+  return (
+    <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="relative w-full h-screen overflow-hidden">
         <img
@@ -92,7 +279,6 @@ export default function Home() {
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-background" />
-        
         <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
           <h1 className="text-6xl md:text-8xl font-bold text-white mb-4 drop-shadow-lg">
             {config.branding.heroTitle}
@@ -100,6 +286,184 @@ export default function Home() {
           <p className="text-2xl md:text-4xl text-yellow-400 font-semibold drop-shadow-lg">
             {config.branding.heroSubtitle}
           </p>
+        </div>
+      </section>
+
+      {/* Edição de times e perfis */}
+      <section className="py-16 px-4 md:px-8 bg-slate-950/80">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-4xl font-bold text-white">Editar times e perfis</h2>
+              <p className="text-sm text-slate-400">Altere nomes, jogadores por time e perfis sem perder o histórico.</p>
+            </div>
+            <Button onClick={handleSaveConfig} className="bg-amber-500 text-black hover:bg-amber-600">
+              <Save className="mr-2 h-4 w-4" /> Salvar alterações
+            </Button>
+          </div>
+
+          {saveMessage && (
+            <div className="rounded-lg border border-emerald-700 bg-emerald-900/40 p-4 text-emerald-200">
+              {saveMessage}
+            </div>
+          )}
+
+          <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+            <Card className="p-6 bg-slate-900/90 border border-slate-800">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Times</h3>
+                  <p className="text-sm text-slate-400">Gerencie o nome, logo e elenco de cada time.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Novo time"
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    className="max-w-xs bg-slate-950 border-slate-800 text-white"
+                  />
+                  <Button onClick={handleAddTeam} variant="secondary">
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {teamDraft.map((team) => (
+                  <div key={team.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-lg font-semibold text-white">{team.name || "Time sem nome"}</h4>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveTeam(team.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-400" />
+                          </Button>
+                        </div>
+                        <p className="text-sm text-slate-500">Jogadores: {(team.players ?? []).length}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 mt-4 md:grid-cols-2">
+                      <Input
+                        value={team.name}
+                        onChange={(e) => setTeamDraft((prev) => prev.map((item) => item.id === team.id ? { ...item, name: e.target.value } : item))}
+                        placeholder="Nome do time"
+                        className="bg-slate-950 border-slate-800 text-white"
+                      />
+                      <Input
+                        value={team.shortName}
+                        onChange={(e) => setTeamDraft((prev) => prev.map((item) => item.id === team.id ? { ...item, shortName: e.target.value } : item))}
+                        placeholder="Sigla"
+                        className="bg-slate-950 border-slate-800 text-white"
+                      />
+                      <Input
+                        value={team.logo}
+                        onChange={(e) => setTeamDraft((prev) => prev.map((item) => item.id === team.id ? { ...item, logo: e.target.value } : item))}
+                        placeholder="URL do logo"
+                        className="bg-slate-950 border-slate-800 text-white"
+                      />
+                      <Input
+                        value={team.color}
+                        onChange={(e) => setTeamDraft((prev) => prev.map((item) => item.id === team.id ? { ...item, color: e.target.value } : item))}
+                        placeholder="Cor do time"
+                        className="bg-slate-950 border-slate-800 text-white"
+                      />
+                      <Input
+                        value={team.accentColor}
+                        onChange={(e) => setTeamDraft((prev) => prev.map((item) => item.id === team.id ? { ...item, accentColor: e.target.value } : item))}
+                        placeholder="Cor de destaque"
+                        className="bg-slate-950 border-slate-800 text-white"
+                      />
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="mb-2 text-sm font-semibold text-slate-300">Jogadores do time</div>
+                      <div className="flex flex-wrap gap-2">
+                        {(team.players ?? []).map((playerName) => (
+                          <span key={playerName} className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-sm text-white">
+                            {playerName}
+                            <button
+                              type="button"
+                              onClick={() => handleTeamPlayerToggle(team.id, playerName)}
+                              className="text-slate-400 hover:text-white"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const selected = e.target.value;
+                          if (!selected) return;
+                          handleTeamPlayerToggle(team.id, selected);
+                          e.target.value = "";
+                        }}
+                        className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                      >
+                        <option value="">Adicionar jogador ao time...</option>
+                        {availablePlayersByTeam(team).map((profile) => (
+                          <option key={profile.id} value={profile.displayName}>{profile.displayName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-slate-900/90 border border-slate-800">
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold text-white">Perfis de jogadores</h3>
+                <p className="text-sm text-slate-400">Edite nomes, aliases e observações de cada jogador.</p>
+              </div>
+              <div className="space-y-4">
+                {profileDraft.map((profile) => (
+                  <div key={profile.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h4 className="text-lg font-semibold text-white">{profile.displayName}</h4>
+                        <p className="text-xs text-slate-500">Histórico: {profile.history.length} registro(s)</p>
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={profile.active}
+                          onChange={(e) => handleProfileChange(profile.id, "active", e.target.checked)}
+                        />
+                        Ativo
+                      </label>
+                    </div>
+                    <div className="grid gap-3 mt-4">
+                      <Input
+                        value={profile.displayName}
+                        onChange={(e) => handleProfileChange(profile.id, "displayName", e.target.value)}
+                        placeholder="Nome do jogador"
+                        className="bg-slate-900 border-slate-800 text-white"
+                      />
+                      <Input
+                        value={profile.aliases.join(", ")}
+                        onChange={(e) => handleProfileChange(profile.id, "aliases", e.target.value)}
+                        placeholder="Aliases separadas por vírgula"
+                        className="bg-slate-900 border-slate-800 text-white"
+                      />
+                      <Input
+                        value={profile.notes ?? ""}
+                        onChange={(e) => handleProfileChange(profile.id, "notes", e.target.value)}
+                        placeholder="Notas do jogador"
+                        className="bg-slate-900 border-slate-800 text-white"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         </div>
       </section>
 
@@ -128,7 +492,20 @@ export default function Home() {
           </div>
 
           <div className="mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">TABELA OFICIAL</h2>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">TABELA OFICIAL</h2>
+                <p className="text-sm text-slate-400">Edite pontos e empates diretamente aqui.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleResetStandings} variant="secondary">
+                  Resetar tabela automática
+                </Button>
+                <Button onClick={handleSaveConfig} className="bg-amber-500 text-black hover:bg-amber-600">
+                  <Save className="mr-2 h-4 w-4" /> Salvar tabela
+                </Button>
+              </div>
+            </div>
             <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
           </div>
 
@@ -145,10 +522,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {standings.map((team, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-border/30 hover:bg-card/50 transition-colors"
-                  >
+                  <tr key={idx} className="border-b border-border/30 hover:bg-card/50 transition-colors">
                     <td className="py-4 px-4 font-semibold text-foreground flex items-center gap-3">
                       <div className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded overflow-hidden">
                         {teams.find(t => t.name === team.team)?.logo && (
@@ -165,14 +539,127 @@ export default function Home() {
                       </div>
                       {team.team}
                     </td>
-                    <td className="text-center py-4 px-4 text-foreground">{team.wins}</td>
-                    <td className="text-center py-4 px-4 text-foreground">{team.draws}</td>
-                    <td className="text-center py-4 px-4 text-foreground">{team.losses}</td>
-                    <td className="text-center py-4 px-4 font-bold text-primary text-lg">{team.points}</td>
+                    <td className="text-center py-4 px-4 text-foreground">
+                      <Input
+                        type="number"
+                        value={team.wins}
+                        onChange={(event) => handleStandingsChange(team.team, "wins", Number(event.target.value))}
+                        className="min-w-[3rem] bg-slate-900 border-slate-700 text-white"
+                      />
+                    </td>
+                    <td className="text-center py-4 px-4 text-foreground">
+                      <Input
+                        type="number"
+                        value={team.draws}
+                        onChange={(event) => handleStandingsChange(team.team, "draws", Number(event.target.value))}
+                        className="min-w-[3rem] bg-slate-900 border-slate-700 text-white"
+                      />
+                    </td>
+                    <td className="text-center py-4 px-4 text-foreground">
+                      <Input
+                        type="number"
+                        value={team.losses}
+                        onChange={(event) => handleStandingsChange(team.team, "losses", Number(event.target.value))}
+                        className="min-w-[3rem] bg-slate-900 border-slate-700 text-white"
+                      />
+                    </td>
+                    <td className="text-center py-4 px-4 font-bold text-primary text-lg">
+                      <Input
+                        type="number"
+                        value={team.points}
+                        onChange={(event) => handleStandingsChange(team.team, "points", Number(event.target.value))}
+                        className="min-w-[4rem] bg-slate-900 border-slate-700 text-white"
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Painel de partidas */}
+      <section className="py-16 px-4 md:px-8 bg-slate-950/80">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-4xl font-bold text-white">Partidas</h2>
+              <p className="text-sm text-slate-400">Apague partidas ou veja rapidamente o histórico de rodadas.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {matches.map((match) => (
+              <Card key={match.id} className="bg-slate-900/90 border border-slate-800">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase text-slate-400">Rodada {match.round}</p>
+                    <h3 className="text-xl font-semibold text-white">{match.team1} vs {match.team2}</h3>
+                    <p className="text-sm text-slate-400">{match.date} · {match.map}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-white text-lg font-bold">{match.score1} x {match.score2}</div>
+                    <Button variant="destructive" size="sm" onClick={() => handleDeleteMatch(match.id)}>
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Team summary with draws */}
+      <section className="py-16 px-4 md:px-8 bg-card/50">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">Times</h2>
+            <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {teamSummary.map((team) => (
+              <Card key={team.team} className="bg-slate-900/90 border border-slate-800">
+                <div className="p-6">
+                  <h3 className="text-2xl font-bold text-white mb-3">{team.team}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Vitórias</p>
+                      <p className="text-2xl font-bold text-emerald-400">{team.wins}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Empates</p>
+                      <p className="text-2xl font-bold text-sky-400">{team.draws}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Derrotas</p>
+                      <p className="text-2xl font-bold text-red-400">{team.losses}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Pontos</p>
+                      <p className="text-2xl font-bold text-primary">{team.points}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Rating Médio</p>
+                      <p className="text-2xl font-bold text-amber-400">{team.avgRating.toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">ADR Médio</p>
+                      <p className="text-2xl font-bold text-violet-400">{team.avgADR.toFixed(1)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Total de Kills</p>
+                      <p className="text-2xl font-bold text-yellow-400">{team.totalKills}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-950/90 p-4">
+                      <p className="text-sm text-slate-400">Total de Deaths</p>
+                      <p className="text-2xl font-bold text-orange-400">{team.totalDeaths}</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
@@ -239,7 +726,7 @@ export default function Home() {
           <div className="mb-12 text-center">
             <h2 className="text-4xl md:text-6xl font-black text-primary mb-4 tracking-tighter">OS POTES</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Distribuição de jogadores baseada em <span className="text-primary font-bold">SCORE ACUMULADO</span>. 
+              Distribuição de jogadores baseada em <span className="text-primary font-bold">ORGANIZAÇÃO MANUAL</span>. 
               Rating HLTV 2.0 é exibido como <span className="text-primary font-bold">MÉDIA DE PERFORMANCE</span>.
             </p>
           </div>
@@ -301,7 +788,6 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Team 1 Summary */}
             <Card className="bg-gradient-to-br from-primary/20 to-primary/10 border-primary/30">
               <div className="bg-gradient-to-r from-primary/80 to-primary/60 p-6 text-white">
                 <h3 className="text-2xl font-bold">{latestMatch.team1} - ANÁLISE</h3>
@@ -329,7 +815,6 @@ export default function Home() {
               </div>
             </Card>
 
-            {/* Team 2 Summary */}
             <Card className="bg-gradient-to-br from-secondary/20 to-secondary/10 border-secondary/30">
               <div className="bg-gradient-to-r from-secondary/80 to-secondary/60 p-6 text-white">
                 <h3 className="text-2xl font-bold">{latestMatch.team2} - ANÁLISE</h3>
