@@ -8,13 +8,16 @@ import { calculateStandings } from "@/lib/rankingSystem";
 import { useChampionshipConfig, useCurrentChampionshipData } from "@/lib/championshipConfig";
 import { type PlayerProfile } from "@/lib/playerRegistry";
 import type { Standings, Team } from "@/data/championship";
+import { AdminSettings } from "@/components/AdminSettings";
+import { useAdminConfig } from "@/hooks/useAdminConfig";
 
 export default function Home() {
   const { config, setConfig } = useChampionshipConfig();
   const { matches, playerRankings, teams } = useCurrentChampionshipData();
   const standings = calculateStandings(matches, teams, config.rules);
+  const adminConfig = useAdminConfig();
 
-  // ========== NOVA LÓGICA DE POTES BASEADA NO CAMPO "pote" ==========
+  // ========== NOVA LÓGICA DE POTES BASEADA NO CAMPO "pote" E ADMIN CONFIG ==========
   const potsMap = new Map<number, {
     title: string;
     subtitle: string;
@@ -23,13 +26,13 @@ export default function Home() {
     players: any[];
   }>();
 
-  const potConfigs = [
-    { title: "POTE 1", subtitle: "ELITE", icon: Trophy, color: "from-yellow-600 to-yellow-400" },
-    { title: "POTE 2", subtitle: "ALTO NÍVEL", icon: Star, color: "from-blue-600 to-blue-400" },
-    { title: "POTE 3", subtitle: "COMPETITIVO", icon: Zap, color: "from-purple-600 to-purple-400" },
-    { title: "POTE 4", subtitle: "INTERMEDIÁRIO", icon: Zap, color: "from-cyan-600 to-cyan-400" },
-    { title: "POTE 5", subtitle: "BASE", icon: Skull, color: "from-red-600 to-red-400" },
-  ];
+  // Usar configurações do admin para potConfigs
+  const potConfigs = adminConfig.potRanges.map((range) => ({
+    title: `POTE ${range.pote}`,
+    subtitle: range.label,
+    icon: Trophy,
+    color: range.color,
+  }));
 
   Object.entries(playerRankings).forEach(([name, data]: [string, any]) => {
     const pote = data.pote || 0;
@@ -1162,6 +1165,9 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Admin Settings */}
+      <AdminSettings />
     </div>
   );
 }

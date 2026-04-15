@@ -183,6 +183,14 @@ function potLowerBound(pote: number): number {
 
 export function calculatePlayerRoundPerformance(
   input: PlayerRoundPerformanceInput,
+  rankingWeights?: {
+    rating: number;
+    adr: number;
+    kd: number;
+    rws: number;
+    mvp: number;
+    kills: number;
+  },
 ): PlayerRoundPerformanceResult {
   const {
     nickname,
@@ -195,6 +203,16 @@ export function calculatePlayerRoundPerformance(
     mvps,
     kills,
   } = input;
+
+  // Use custom weights or defaults
+  const weights = rankingWeights || {
+    rating: 0.30,
+    adr: 0.20,
+    kd: 0.20,
+    rws: 0.15,
+    mvp: 0.10,
+    kills: 0.05,
+  };
 
   // ========== NORMALIZAÇÕES PRECISAS ==========
   // Rating esperado: 0.9 a 1.5 para maioria dos jogadores
@@ -211,14 +229,14 @@ export function calculatePlayerRoundPerformance(
   const normalizedKills = clamp((kills - 12) / 13, 0, 1);
 
   // ========== SCORE DE PERFORMANCE ==========
-  // Weights baseados em importância tática
+  // Weights baseados em importância tática (agora customizáveis)
   const performanceScore =
-    normalizedRating * 0.30 +   // Rating é base
-    normalizedADR * 0.20 +      // ADR é importante
-    normalizedKD * 0.20 +       // K/D mostra consistência
-    normalizedRWS * 0.15 +      // RWS mede impacto real
-    normalizedMVP * 0.10 +      // MVPs adicionam pressão
-    normalizedKills * 0.05;     // Kills totais como bônus
+    normalizedRating * weights.rating +
+    normalizedADR * weights.adr +
+    normalizedKD * weights.kd +
+    normalizedRWS * weights.rws +
+    normalizedMVP * weights.mvp +
+    normalizedKills * weights.kills;
 
   // ========== BÔNUS/PENALIDADES DE IMPACTO ==========
   let impactBonus = 0;

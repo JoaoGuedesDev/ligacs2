@@ -3,9 +3,11 @@
 ```
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                                                                           ║
-║                  ✅ SISTEMA DE LIGA CS2 - VERSÃO 1.0                     ║
+║  Parabéns! Você tem um sistema de liga CS2 profissional.                 ║
 ║                                                                           ║
-║                    🏆 TUDO PRONTO PARA USO 🏆                            ║
+║  Próximo passo: Abra START_HERE.md e siga as instruções.                 ║
+║                                                                           ║
+║                    Divirta-se! 🏆 🎮 ✨                                   ║
 ║                                                                           ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
 ```
