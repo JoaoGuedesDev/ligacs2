@@ -1,55 +1,44 @@
 import { Trophy, Star, Zap, Skull, TrendingUp, Target, Shield, Sword, MousePointer2 } from "lucide-react";
 import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
-import { INITIAL_STANDINGS, INITIAL_PLAYER_RANKINGS, MATCHES, TEAMS } from "@/data/championship";
 import { calculateStandings } from "@/lib/rankingSystem";
+import { useCurrentChampionshipData } from "@/lib/championshipConfig";
 
-const EPIC_IMAGE = "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=2070";
-
-// Helper to get pot data from rankings
-const getPots = () => {
+export default function Home() {
+  const { config, matches, playerRankings, teams } = useCurrentChampionshipData();
+  const standings = calculateStandings(matches, teams, config.rules);
   const pots = [
     { title: "POTE 1", subtitle: "ELITE (80+)", icon: Trophy, color: "from-yellow-600 to-yellow-400", min: 80, max: 200 },
     { title: "POTE 2", subtitle: "ALTO NÍVEL (70–79)", icon: Star, color: "from-blue-600 to-blue-400", min: 70, max: 79 },
     { title: "POTE 3", subtitle: "COMPETITIVO (60–69)", icon: Zap, color: "from-purple-600 to-purple-400", min: 60, max: 69 },
     { title: "POTE 4", subtitle: "INTERMEDIÁRIO (50–59)", icon: Zap, color: "from-cyan-600 to-cyan-400", min: 50, max: 59 },
     { title: "POTE 5", subtitle: "BASE (≤49)", icon: Skull, color: "from-red-600 to-red-400", min: 0, max: 49 },
-  ];
-
-  return pots.map(pot => {
-    const potPlayers = Object.entries(INITIAL_PLAYER_RANKINGS)
-      .filter(([_, data]) => data.currentScore >= pot.min && data.currentScore <= pot.max)
-      .map(([name, data]) => {
-        // Calculate average rating from MATCHES
+  ].map((pot) => {
+    const potPlayers = Object.entries(playerRankings)
+      .filter(([_, data]: [string, any]) => data.currentScore >= pot.min && data.currentScore <= pot.max)
+      .map(([name, data]: [string, any]) => {
         let totalRating = 0;
         let matchCount = 0;
-        MATCHES.forEach(m => {
-          const p = [...m.team1Players, ...m.team2Players].find(tp => tp.name === name);
+        matches.forEach((m) => {
+          const p = [...m.team1Players, ...m.team2Players].find((tp) => tp.name === name);
           if (p) {
             totalRating += p.rating;
             matchCount++;
           }
         });
-
         return {
           name,
-          initial: data.scoreHistory[0],
+          initial: data.scoreHistory?.[0] || data.currentScore,
           current: data.currentScore,
           rating: matchCount > 0 ? totalRating / matchCount : 0,
-          status: data.movement === "↑" ? "subindo" : data.movement === "↓" ? "em risco" : "estável"
+          status: data.movement === "↑" ? "subindo" : data.movement === "↓" ? "em risco" : "estável",
         };
       });
-
     return { ...pot, players: potPlayers };
   });
-};
-
-const pots = getPots();
-
-export default function Home() {
-  const standings = calculateStandings(MATCHES, TEAMS);
   // Get latest match stats (The very last match in the array)
-  const latestMatch = MATCHES[MATCHES.length - 1];
+  const latestMatch = matches[matches.length - 1];
+  if (!latestMatch) return <div className="p-8">Sem partidas cadastradas no Admin.</div>;
   const latestMatches = [latestMatch];
   
   // Calculate aggregate stats for latest matches
@@ -71,7 +60,7 @@ export default function Home() {
   // Get highlights from all players
   const allPlayersPerformance = (() => {
     const players: Record<string, { name: string, rating: number, matches: number, adr: number, rws: number }> = {};
-    MATCHES.forEach(m => {
+    matches.forEach(m => {
       [...m.team1Players, ...m.team2Players].forEach(p => {
         if (!players[p.name]) players[p.name] = { name: p.name, rating: 0, matches: 0, adr: 0, rws: 0 };
         players[p.name].rating += p.rating;
@@ -98,7 +87,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative w-full h-screen overflow-hidden">
         <img
-          src={EPIC_IMAGE}
+          src={config.branding.heroImageUrl}
           alt="Liga Tucuruí CS2"
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -106,10 +95,10 @@ export default function Home() {
         
         <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
           <h1 className="text-6xl md:text-8xl font-bold text-white mb-4 drop-shadow-lg">
-            LIGA TUCURUÍ
+            {config.branding.heroTitle}
           </h1>
           <p className="text-2xl md:text-4xl text-yellow-400 font-semibold drop-shadow-lg">
-            CS2 Championship
+            {config.branding.heroSubtitle}
           </p>
         </div>
       </section>
@@ -162,9 +151,9 @@ export default function Home() {
                   >
                     <td className="py-4 px-4 font-semibold text-foreground flex items-center gap-3">
                       <div className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded overflow-hidden">
-                        {TEAMS.find(t => t.name === team.team)?.logo && (
+                        {teams.find(t => t.name === team.team)?.logo && (
                           <img 
-                            src={TEAMS.find(t => t.name === team.team)?.logo} 
+                            src={teams.find(t => t.name === team.team)?.logo} 
                             alt="" 
                             className="w-full h-full object-contain"
                             onError={(e) => {
@@ -199,8 +188,8 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <Card className="bg-gradient-to-br from-green-900/20 to-green-800/10 border-green-500/30">
               <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 text-white flex items-center gap-4">
-                {TEAMS.find(t => t.name === latestStats.team1.name)?.logo && (
-                  <img src={TEAMS.find(t => t.name === latestStats.team1.name)?.logo} alt="" className="w-12 h-12 object-contain bg-white/10 p-1 rounded" />
+                {teams.find(t => t.name === latestStats.team1.name)?.logo && (
+                  <img src={teams.find(t => t.name === latestStats.team1.name)?.logo} alt="" className="w-12 h-12 object-contain bg-white/10 p-1 rounded" />
                 )}
                 <div>
                   <h3 className="text-2xl font-bold">{latestStats.team1.name}</h3>
@@ -221,8 +210,8 @@ export default function Home() {
 
             <Card className="bg-gradient-to-br from-red-900/20 to-red-800/10 border-red-500/30">
               <div className="bg-gradient-to-r from-red-600 to-red-500 p-6 text-white flex items-center gap-4">
-                {TEAMS.find(t => t.name === latestStats.team2.name)?.logo && (
-                  <img src={TEAMS.find(t => t.name === latestStats.team2.name)?.logo} alt="" className="w-12 h-12 object-contain bg-white/10 p-1 rounded" />
+                {teams.find(t => t.name === latestStats.team2.name)?.logo && (
+                  <img src={teams.find(t => t.name === latestStats.team2.name)?.logo} alt="" className="w-12 h-12 object-contain bg-white/10 p-1 rounded" />
                 )}
                 <div>
                   <h3 className="text-2xl font-bold">{latestStats.team2.name}</h3>
@@ -468,7 +457,7 @@ export default function Home() {
       <footer className="bg-card/50 border-t border-primary/20 py-8 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-muted-foreground text-sm">
-            Liga Tucuruí CS2 • Edição Especial • Abertura do Campeonato
+            {config.branding.footerText}
           </p>
         </div>
       </footer>

@@ -15,6 +15,17 @@ export interface PlayerRankingData {
   lastUpdate: Date;
   movement: "↑" | "↓" | "→";   // Movimento na última rodada
   scoreChange: number;          // Δ pontos na última rodada
+  aliases?: string[];           // Nicks alternativos Faceit
+  totalStats?: {
+    matches: number;
+    kills: number;
+    deaths: number;
+    assists: number;
+    avgRating: number;
+    avgADR: number;
+    avgRWS: number;
+    avgHS: number;
+  };
 }
 
 export interface RoundStats {
@@ -326,6 +337,27 @@ export function updatePlayerRanking(
     movement = "→"; // Manteve pote
   }
 
+  // Atualizar estatísticas totais se existirem
+  const totalStats = player.totalStats ? {
+    matches: player.totalStats.matches + 1,
+    kills: player.totalStats.kills + stats.kills,
+    deaths: player.totalStats.deaths + stats.deaths,
+    assists: player.totalStats.assists + stats.assists,
+    avgRating: (player.totalStats.avgRating * player.totalStats.matches + stats.rating) / (player.totalStats.matches + 1),
+    avgADR: (player.totalStats.avgADR * player.totalStats.matches + stats.adr) / (player.totalStats.matches + 1),
+    avgRWS: (player.totalStats.avgRWS * player.totalStats.matches + stats.rws) / (player.totalStats.matches + 1),
+    avgHS: (player.totalStats.avgHS * player.totalStats.matches + stats.hsPercent) / (player.totalStats.matches + 1),
+  } : {
+    matches: 1,
+    kills: stats.kills,
+    deaths: stats.deaths,
+    assists: stats.assists,
+    avgRating: stats.rating,
+    avgADR: stats.adr,
+    avgRWS: stats.rws,
+    avgHS: stats.hsPercent,
+  };
+
   return {
     ...player,
     currentScore: newScore,
@@ -335,6 +367,7 @@ export function updatePlayerRanking(
     lastUpdate: new Date(),
     movement,
     scoreChange: delta,
+    totalStats,
   };
 }
 
@@ -408,7 +441,13 @@ export function getMovementColor(movement: "↑" | "↓" | "→"): string {
  * Empate (1-1): 1 ponto
  * Derrota (0-2): 0 pontos
  */
-export function calculateStandings(matches: any[], teams: any[]) {
+export function calculateStandings(
+  matches: any[],
+  teams: any[],
+  scoringRules?: { winPoints?: number; drawPoints?: number; lossPoints?: number },
+) {
+  const winPoints = scoringRules?.winPoints ?? 3;
+  const drawPoints = scoringRules?.drawPoints ?? 1;
   const standings = teams.map(team => ({
     team: team.name,
     wins: 0,     // Vitórias MD2 (2-0)
@@ -460,17 +499,17 @@ export function calculateStandings(matches: any[], teams: any[]) {
       // Lógica de Pontuação MD2
       if (t1Maps === 2) {
         t1.wins++;
-        t1.points += 3;
+        t1.points += winPoints;
         t2.losses++;
       } else if (t2Maps === 2) {
         t2.wins++;
-        t2.points += 3;
+        t2.points += winPoints;
         t1.losses++;
       } else if (t1Maps === 1 && t2Maps === 1) {
         t1.draws++;
-        t1.points += 1;
+        t1.points += drawPoints;
         t2.draws++;
-        t2.points += 1;
+        t2.points += drawPoints;
       } else if (group.length === 1) {
         // Caso tenha apenas 1 mapa jogado até agora (partida em andamento ou incompleta)
         if (t1Maps === 1) {

@@ -1,8 +1,8 @@
 import { useParams, Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MATCHES, INITIAL_PLAYER_RANKINGS, TEAMS } from "@/data/championship";
 import { ArrowLeft, Trophy, Target, Shield, Zap, TrendingUp, TrendingDown, Minus, Skull } from "lucide-react";
+import { useCurrentChampionshipData } from "@/lib/championshipConfig";
 
 interface PlayerStats {
   name: string;
@@ -26,9 +26,9 @@ interface PlayerStats {
 }
 
 // Function to calculate player stats dynamically from MATCHES
-function getPlayerStats(playerName: string): PlayerStats | null {
+function getPlayerStats(playerName: string, matches: any[], playerRankings: Record<string, any>, teams: any[]): PlayerStats | null {
   const decodedName = decodeURIComponent(playerName);
-  const playerRanking = INITIAL_PLAYER_RANKINGS[decodedName as keyof typeof INITIAL_PLAYER_RANKINGS];
+  const playerRanking = playerRankings[decodedName];
   
   let totalKills = 0;
   let totalDeaths = 0;
@@ -44,10 +44,10 @@ function getPlayerStats(playerName: string): PlayerStats | null {
   let matchCount = 0;
   let teamName = "";
 
-  MATCHES.forEach(match => {
+  matches.forEach(match => {
     const playerMatchStats = [...match.team1Players, ...match.team2Players].find(p => p.name === decodedName);
     if (playerMatchStats) {
-      if (!teamName) teamName = match.team1Players.some(p => p.name === decodedName) ? match.team1 : match.team2;
+      if (!teamName) teamName = match.team1Players.some((p: any) => p.name === decodedName) ? match.team1 : match.team2;
       
       totalKills += playerMatchStats.kills;
       totalDeaths += playerMatchStats.deaths;
@@ -58,8 +58,7 @@ function getPlayerStats(playerName: string): PlayerStats | null {
       totalHSPercent += playerMatchStats.hsPercent;
       totalMVPs += playerMatchStats.mvps || 0;
       
-      // Parse multikills string "1x 4k, 2x 3k, 3x 2k"
-      const mkStr = playerMatchStats.multikills;
+      const mkStr = playerMatchStats.multikills || "";
       const match4k = mkStr.match(/(\d+)x\s*4k/);
       const match3k = mkStr.match(/(\d+)x\s*3k/);
       const match2k = mkStr.match(/(\d+)x\s*2k/);
@@ -72,7 +71,32 @@ function getPlayerStats(playerName: string): PlayerStats | null {
     }
   });
 
-  if (matchCount === 0) return null;
+  if (matchCount === 0) {
+    if (!playerRanking) return null;
+    
+    // Se não jogou nesta temporada, tenta usar estatísticas globais salvas
+    const stats = playerRanking.totalStats;
+    return {
+      name: decodedName,
+      team: teams.find((t: any) => (t.players || []).includes(decodedName))?.name || "Sem Time",
+      rating: stats?.avgRating || 0,
+      kills: stats?.kills || 0,
+      deaths: stats?.deaths || 0,
+      assists: stats?.assists || 0,
+      adr: stats?.avgADR || 0,
+      rws: stats?.avgRWS || 0,
+      hs_percent: stats?.avgHS || 0,
+      kr_ratio: (stats?.kills || 0) / ((stats?.matches || 1) * 24),
+      kd_ratio: (stats?.deaths || 0) > 0 ? (stats?.kills || 0) / stats.deaths : (stats?.kills || 0),
+      multikills_4k: 0,
+      multikills_3k: 0,
+      multikills_2k: 0,
+      mvps: 0,
+      matches: stats?.matches || 0,
+      score: playerRanking.currentScore,
+      movement: playerRanking.movement || "→"
+    };
+  }
 
   return {
     name: decodedName,
@@ -129,8 +153,9 @@ function StatBar({ label, value, max, unit = "" }: { label: string; value: numbe
 }
 
 export default function PlayerDetail() {
+  const { matches, playerRankings, teams } = useCurrentChampionshipData();
   const { name } = useParams<{ name: string }>();
-  const player = name ? getPlayerStats(name) : null;
+  const player = name ? getPlayerStats(name, matches, playerRankings, teams) : null;
 
   if (!player) {
     return (
@@ -171,9 +196,9 @@ export default function PlayerDetail() {
 
           <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-10">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-primary/20 flex items-center justify-center shadow-2xl relative overflow-hidden">
-              {TEAMS.find(t => t.name === player.team)?.logo && (
+              {teams.find(t => t.name === player.team)?.logo && (
                 <img 
-                  src={TEAMS.find(t => t.name === player.team)?.logo} 
+                  src={teams.find(t => t.name === player.team)?.logo} 
                   alt={player.team} 
                   className="w-full h-full object-cover opacity-80"
                   onError={(e) => {
@@ -183,7 +208,7 @@ export default function PlayerDetail() {
                 />
               )}
               <div className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground text-xs font-black px-3 py-1 rounded-full shadow-lg border-2 border-slate-950">
-                {TEAMS.find(t => t.name === player.team)?.shortName || "CS2"}
+                {teams.find(t => t.name === player.team)?.shortName || "CS2"}
               </div>
             </div>
 

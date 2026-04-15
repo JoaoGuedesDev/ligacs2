@@ -5,6 +5,7 @@ export interface Team {
   logo: string;
   color: string;
   accentColor: string;
+  players?: string[];
 }
 
 export interface Player {
@@ -62,6 +63,62 @@ export interface Standings {
   draws: number;
   losses: number;
   points: number;
+}
+
+export interface ChampionshipMeta {
+  id: string;
+  name: string;
+  season: string;
+  stage: string;
+  game: string;
+  status: "draft" | "active" | "finished";
+  startDate: string;
+  endDate: string;
+}
+
+export interface BrandingConfig {
+  heroTitle: string;
+  heroSubtitle: string;
+  footerText: string;
+  heroImageUrl: string;
+}
+
+export interface RulesConfig {
+  winPoints: number;
+  drawPoints: number;
+  lossPoints: number;
+  tieBreakers: string[];
+  rankingNotes: string;
+}
+
+export interface PlayerRankingData {
+  currentScore: number;
+  pote: number;
+  scoreHistory: number[];
+  poteHistory: number[];
+  movement: "↑" | "↓" | "→";
+  scoreChange: number;
+  aliases?: string[]; // Nomes alternativos no Faceit
+  totalStats?: {
+    matches: number;
+    kills: number;
+    deaths: number;
+    assists: number;
+    avgRating: number;
+    avgADR: number;
+    avgRWS: number;
+    avgHS: number;
+  };
+}
+
+export interface ChampionshipConfig {
+  championship: ChampionshipMeta;
+  branding: BrandingConfig;
+  rules: RulesConfig;
+  teams: Team[];
+  matches: MatchStats[];
+  standings: Standings[];
+  playerRankings: Record<string, PlayerRankingData>;
 }
 
 export const TEAMS: Team[] = [
@@ -256,7 +313,7 @@ export const INITIAL_STANDINGS: Standings[] = [
 // Baseado em análise de IMPACTO REAL (não matemática pura)
 // IMPACTO > ESTATÍSTICA
 // Ratings calculados com fórmula profissional (K/D 40%, ADR 15%, KAST 15%, RWS 10%, MKs 10%, Clutches 5%, HS% 5%)
-export const INITIAL_PLAYER_RANKINGS = {
+export const INITIAL_PLAYER_RANKINGS: Record<string, PlayerRankingData> = {
   // 💎 POTE 1 (Elite 80+ pts) - Após Rodada 1
   "roblNN": { currentScore: 92, pote: 1, scoreHistory: [80, 92], poteHistory: [1, 1], movement: "→", scoreChange: 12 },
   "ARLLIMA": { currentScore: 92, pote: 1, scoreHistory: [80, 92], poteHistory: [1, 1], movement: "→", scoreChange: 12 },
@@ -283,4 +340,34 @@ export const INITIAL_PLAYER_RANKINGS = {
   "tturato": { currentScore: 46, pote: 5, scoreHistory: [40, 46], poteHistory: [5, 5], movement: "→", scoreChange: 6 },
   "MESSIAS": { currentScore: 40, pote: 5, scoreHistory: [40, 40], poteHistory: [5, 5], movement: "→", scoreChange: 0 },
   "Dunglesss": { currentScore: 40, pote: 5, scoreHistory: [40, 40], poteHistory: [5, 5], movement: "→", scoreChange: 0 },
+};
+
+export const DEFAULT_CHAMPIONSHIP_CONFIG: ChampionshipConfig = {
+  championship: {
+    id: "liga-tucurui-cs2",
+    name: "Liga Tucuruí",
+    season: "2026",
+    stage: "Abertura",
+    game: "CS2",
+    status: "active",
+    startDate: "2026-04-14",
+    endDate: "2026-12-31",
+  },
+  branding: {
+    heroTitle: "LIGA TUCURUÍ",
+    heroSubtitle: "CS2 Championship",
+    footerText: "Liga Tucuruí CS2 • Edição Especial • Abertura do Campeonato",
+    heroImageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=2070",
+  },
+  rules: {
+    winPoints: 3,
+    drawPoints: 1,
+    lossPoints: 0,
+    tieBreakers: ["saldo_de_mapas", "vitorias", "confronto_direto"],
+    rankingNotes: "Ranking manual com ajuste por rodada.",
+  },
+  teams: TEAMS,
+  matches: MATCHES,
+  standings: INITIAL_STANDINGS,
+  playerRankings: INITIAL_PLAYER_RANKINGS,
 };
