@@ -6,6 +6,8 @@ import PlayerRegistryManager from "@/components/admin/PlayerRegistryManager";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { calculateStandings, calculatePlayerRankings } from "@/lib/championshipUtils";
+import type { ChampionshipConfig } from "@/data/championship";
 
 export default function Admin() {
   const { config, setConfig } = useChampionshipConfig();
@@ -18,20 +20,33 @@ export default function Admin() {
       const parsedJson = JSON.parse(jsonEditorText);
       const newConfigPartial = mapImportedJsonToConfig(parsedJson);
 
-      setConfig((prev) => ({
-        ...prev,
+      const updatedConfig = {
+        ...config,
         ...newConfigPartial,
-        teams: newConfigPartial.teams || prev.teams,
-        matches: newConfigPartial.matches || prev.matches,
-      }));
+        teams: newConfigPartial.teams || config.teams,
+        matches: newConfigPartial.matches || config.matches,
+        rules: newConfigPartial.rules || config.rules,
+      } as ChampionshipConfig;
 
-      setJsonError("");
-      setMessage("JSON processado com sucesso! Os dados foram atualizados.");
-      setTimeout(() => setMessage(""), 3000);
-    } catch (error) {
-      setJsonError(
-        `Erro ao processar JSON: ${error instanceof Error ? error.message : String(error)}`
+      const recalculatedStandings = calculateStandings(
+        updatedConfig.matches,
+        updatedConfig.teams,
+        updatedConfig.rules,
       );
+      const recalculatedPlayerRankings = calculatePlayerRankings(updatedConfig.matches);
+
+      const finalConfig: ChampionshipConfig = {
+        ...updatedConfig,
+        standings: recalculatedStandings,
+        playerRankings: recalculatedPlayerRankings,
+      };
+
+      setConfig(finalConfig);
+      setJsonError("");
+      setMessage("✅ JSON processado com sucesso! Rankings atualizados.");
+      setTimeout(() => setMessage(""), 4000);
+    } catch (error: unknown) {
+      setJsonError(`❌ Erro: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -73,7 +88,7 @@ export default function Admin() {
                   onChange={(e) => setJsonEditorText(e.target.value)}
                 />
                 {jsonError && <div className="text-red-400 text-sm">{jsonError}</div>}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={handleProcessJson}
                     className="bg-amber-500 hover:bg-amber-600 text-black font-bold"
