@@ -513,3 +513,73 @@ export function importMatchStatsIntoProfiles(
     playerProfiles: { ...next.playerProfiles },
   };
 }
+
+/**
+ * Limpa todo o histórico de partidas e estatísticas de carreira de todos os perfis.
+ */
+export function clearAllPlayerHistories(config: ExtendedChampionshipConfig): ExtendedChampionshipConfig {
+  const next = ensureExtendedConfig(config);
+  const profiles = { ...next.playerProfiles };
+
+  for (const id in profiles) {
+    profiles[id] = {
+      ...profiles[id],
+      history: [],
+      careerStats: emptyCareerStats(),
+      updatedAt: nowIso(),
+    };
+  }
+
+  return {
+    ...next,
+    playerProfiles: profiles,
+  };
+}
+
+/**
+ * Reseta os rankings (scores e histórico de pontos) de todos os jogadores para os valores base.
+ */
+export function resetAllPlayerRankings(config: ExtendedChampionshipConfig): ExtendedChampionshipConfig {
+  const next = ensureExtendedConfig(config);
+  const nextRankings = { ...next.playerRankings };
+
+  for (const name in nextRankings) {
+    const currentRanking = nextRankings[name];
+    const initialScore = 50; // Valor base padrão
+    
+    nextRankings[name] = {
+      ...currentRanking,
+      currentScore: initialScore,
+      scoreHistory: [initialScore],
+      poteHistory: [currentRanking.pote],
+      movement: "→",
+      scoreChange: 0,
+      totalStats: {
+        matches: 0,
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+        avgRating: 0,
+        avgADR: 0,
+        avgRWS: 0,
+        avgHS: 0,
+      },
+    };
+  }
+
+  return {
+    ...next,
+    playerRankings: nextRankings,
+  };
+}
+
+/**
+ * Remove todas as partidas e limpa as tabelas de classificação.
+ */
+export function clearAllMatchesAndStandings(config: ExtendedChampionshipConfig): ExtendedChampionshipConfig {
+  return {
+    ...config,
+    matches: [],
+    standings: [],
+  };
+}

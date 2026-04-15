@@ -521,7 +521,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {standings.map((team, idx) => (
+                {displayStandings.map((team, idx) => (
                   <tr key={idx} className="border-b border-border/30 hover:bg-card/50 transition-colors">
                     <td className="py-4 px-4 font-semibold text-foreground flex items-center gap-3">
                       <div className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded overflow-hidden">
@@ -720,7 +720,223 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pots Section */}
+      {/* Edição de Stats dos Jogadores */}
+      <section className="py-16 px-4 md:px-8 bg-slate-950/80">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-4xl font-bold text-white">Editar Stats dos Jogadores</h2>
+              <p className="text-sm text-slate-400">Ajuste manualmente os dados das partidas quando necessário.</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {matches.map((match) => (
+              <Card key={match.id} className="bg-slate-900/90 border border-slate-800">
+                <div className="p-6">
+                  <div className="mb-6 pb-6 border-b border-slate-700">
+                    <p className="text-xs uppercase text-slate-400">Rodada {match.round} · {match.date} · {match.map}</p>
+                    <h3 className="text-2xl font-semibold text-white">{match.team1} {match.score1} x {match.score2} {match.team2}</h3>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-lg font-bold text-emerald-400 mb-4">{match.team1}</h4>
+                      <div className="space-y-3">
+                        {match.team1Players.map((player, idx) => (
+                          <div key={`${match.id}-t1-${idx}`} className="bg-slate-950 rounded-lg p-3 space-y-2">
+                            <p className="font-semibold text-white text-sm">{player.name}</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <label className="text-slate-400">Rating</label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={player.rating}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team1Players: m.team1Players.map((p, i) => i === idx ? { ...p, rating: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400">Kills</label>
+                                <Input
+                                  type="number"
+                                  value={player.kills}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team1Players: m.team1Players.map((p, i) => i === idx ? { ...p, kills: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400">Deaths</label>
+                                <Input
+                                  type="number"
+                                  value={player.deaths}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team1Players: m.team1Players.map((p, i) => i === idx ? { ...p, deaths: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400">ADR</label>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={player.adr}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team1Players: m.team1Players.map((p, i) => i === idx ? { ...p, adr: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-lg font-bold text-red-400 mb-4">{match.team2}</h4>
+                      <div className="space-y-3">
+                        {match.team2Players.map((player, idx) => (
+                          <div key={`${match.id}-t2-${idx}`} className="bg-slate-950 rounded-lg p-3 space-y-2">
+                            <p className="font-semibold text-white text-sm">{player.name}</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <label className="text-slate-400">Rating</label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={player.rating}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team2Players: m.team2Players.map((p, i) => i === idx ? { ...p, rating: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400">Kills</label>
+                                <Input
+                                  type="number"
+                                  value={player.kills}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team2Players: m.team2Players.map((p, i) => i === idx ? { ...p, kills: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400">Deaths</label>
+                                <Input
+                                  type="number"
+                                  value={player.deaths}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team2Players: m.team2Players.map((p, i) => i === idx ? { ...p, deaths: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400">ADR</label>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={player.adr}
+                                  onChange={(e) => {
+                                    const newMatches = config.matches.map(m => {
+                                      if (m.id === match.id) {
+                                        return {
+                                          ...m,
+                                          team2Players: m.team2Players.map((p, i) => i === idx ? { ...p, adr: Number(e.target.value) } : p)
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    setConfig({ ...config, matches: newMatches });
+                                  }}
+                                  className="bg-slate-800 border-slate-700 text-white h-7"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="py-16 px-4 md:px-8 bg-background">
         <div className="max-w-6xl mx-auto">
           <div className="mb-12 text-center">

@@ -65,7 +65,7 @@ export default function Championship() {
       matches: prev.matches.map(m => {
         if (m.id !== matchId) return m;
         const newMatch = structuredClone(m);
-        newMatch[teamKey][playerIndex][field] = value;
+        (newMatch[teamKey][playerIndex] as any)[field] = value;
         return newMatch;
       })
     }));

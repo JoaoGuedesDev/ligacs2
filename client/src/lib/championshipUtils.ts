@@ -196,69 +196,96 @@ export function calculatePlayerRoundPerformance(
     kills,
   } = input;
 
-  const normalizedRating = clamp((rating - 0.90) / 0.60, 0, 1);
-  const normalizedADR = clamp((adr - 60) / 55, 0, 1);
-  const normalizedKD = clamp((kd - 0.80) / 1.20, 0, 1);
-  const normalizedRWS = clamp((rws - 5) / 10, 0, 1);
-  const normalizedMVP = clamp(mvps / 4, 0, 1);
-  const normalizedKills = clamp((kills - 10) / 15, 0, 1);
+  // ========== NORMALIZAÇÕES PRECISAS ==========
+  // Rating esperado: 0.9 a 1.5 para maioria dos jogadores
+  const normalizedRating = clamp((rating - 0.85) / 0.65, 0, 1);
+  // ADR esperado: 60 a 100
+  const normalizedADR = clamp((adr - 60) / 40, 0, 1);
+  // KD esperado: 0.8 a 2.0
+  const normalizedKD = clamp((kd - 0.8) / 1.2, 0, 1);
+  // RWS esperado: 5 a 20
+  const normalizedRWS = clamp((rws - 5) / 15, 0, 1);
+  // MVPs esperados: 0 a 5
+  const normalizedMVP = clamp(mvps / 5, 0, 1);
+  // Kills esperadas: 12 a 25
+  const normalizedKills = clamp((kills - 12) / 13, 0, 1);
 
+  // ========== SCORE DE PERFORMANCE ==========
+  // Weights baseados em importância tática
   const performanceScore =
-    normalizedRating * 0.35 +
-    normalizedADR * 0.15 +
-    normalizedKD * 0.15 +
-    normalizedRWS * 0.15 +
-    normalizedMVP * 0.10 +
-    normalizedKills * 0.10;
+    normalizedRating * 0.30 +   // Rating é base
+    normalizedADR * 0.20 +      // ADR é importante
+    normalizedKD * 0.20 +       // K/D mostra consistência
+    normalizedRWS * 0.15 +      // RWS mede impacto real
+    normalizedMVP * 0.10 +      // MVPs adicionam pressão
+    normalizedKills * 0.05;     // Kills totais como bônus
 
+  // ========== BÔNUS/PENALIDADES DE IMPACTO ==========
   let impactBonus = 0;
-  if (rws >= 14) impactBonus += 1.5;
-  else if (rws >= 11) impactBonus += 0.8;
-  else if (rws <= 6) impactBonus -= 0.8;
+  
+  // RWS Impact (round win share)
+  if (rws >= 15) impactBonus += 1.2;
+  else if (rws >= 12) impactBonus += 0.7;
+  else if (rws >= 9) impactBonus += 0.3;
+  else if (rws <= 5) impactBonus -= 0.8;
 
-  if (adr >= 95) impactBonus += 1;
-  else if (adr >= 85) impactBonus += 0.4;
-  else if (adr < 65) impactBonus -= 0.5;
+  // ADR Impact (damage consistency)
+  if (adr >= 100) impactBonus += 1.0;
+  else if (adr >= 90) impactBonus += 0.6;
+  else if (adr >= 80) impactBonus += 0.3;
+  else if (adr < 60) impactBonus -= 0.5;
 
-  if (kills >= 22) impactBonus += 1;
-  else if (kills >= 18) impactBonus += 0.5;
+  // Kill Impact (entry and presença)
+  if (kills >= 24) impactBonus += 1.0;
+  else if (kills >= 20) impactBonus += 0.6;
+  else if (kills >= 16) impactBonus += 0.3;
   else if (kills <= 10) impactBonus -= 0.5;
 
-  if (mvps >= 4) impactBonus += 1;
-  else if (mvps >= 2) impactBonus += 0.5;
+  // MVP Impact (clutch moments)
+  if (mvps >= 5) impactBonus += 1.0;
+  else if (mvps >= 3) impactBonus += 0.6;
 
-  if (kd >= 1.4) impactBonus += 1;
-  else if (kd >= 1.1) impactBonus += 0.4;
-  else if (kd < 0.9) impactBonus -= 0.7;
+  // K/D Impact (consistency)
+  if (kd >= 1.6) impactBonus += 0.8;
+  else if (kd >= 1.2) impactBonus += 0.4;
+  else if (kd < 0.85) impactBonus -= 0.6;
 
-  impactBonus = clamp(impactBonus, -2, 2);
+  impactBonus = clamp(impactBonus, -1.5, 1.5);
 
+  // ========== CÁLCULO DO DELTA ==========
   const expectedRating = getExpectedRatingForPote(current_pot);
   const deltaRating = rating - expectedRating;
   const performance_level = getPerformanceLevel(deltaRating);
 
+  // Delta ranges por nível de performance
   const [minDelta, maxDelta] = getDeltaRange(performance_level);
-  let delta = Math.round(minDelta + (maxDelta - minDelta) * performanceScore + impactBonus);
+  let delta = Math.round(minDelta + (maxDelta - minDelta) * performanceScore + impactBonus * 2);
 
+  // ========== REGRAS DE ESTABILIDADE ==========
+  // Se está muito acima do esperado para seu pote, garante progresso mínimo
   if (deltaRating >= 0.25 && current_pot > 1) {
-    delta = Math.max(delta, 4);
+    delta = Math.max(delta, 3);
   }
+  // Se está muito abaixo do esperado, aplicar penalidade
   if (deltaRating <= -0.25 && current_pot < 5) {
-    delta = Math.min(delta, -4);
+    delta = Math.min(delta, -3);
   }
 
+  // Limites por pote (Pote 5 é mais fácil subir, Pote 1 é mais difícil descer)
   if (current_pot === 5) {
-    delta = Math.min(delta, 8);
+    delta = Math.min(delta, 10);  // Facilita subida
   }
   if (current_pot === 1) {
-    delta = Math.max(delta, -6);
+    delta = Math.max(delta, -5);  // Protege desida
   }
 
   delta = clamp(delta, -10, 12);
 
+  // ========== NOVA PONTUAÇÃO E POTE ==========
   let new_points = clamp(current_points + delta, 0, 100);
   let new_pot = getPoteFromScore(new_points);
 
+  // Limite de mudança de pote por rodada (-1 a +1)
   if (new_pot < current_pot - 1) {
     new_pot = current_pot - 1;
     new_points = clamp(new_points, potLowerBound(new_pot), getPotUpperBound(new_pot));
@@ -269,20 +296,22 @@ export function calculatePlayerRoundPerformance(
     new_points = clamp(new_points, potLowerBound(new_pot), getPotUpperBound(new_pot));
   }
 
+  // ========== ANÁLISE TEXTUAL ==========
   const analysisParts: string[] = [];
   if (performance_level === "muito acima") analysisParts.push("desempenho muito acima do esperado");
   if (performance_level === "acima") analysisParts.push("desempenho acima do esperado");
   if (performance_level === "neutro") analysisParts.push("desempenho dentro do esperado");
   if (performance_level === "abaixo") analysisParts.push("desempenho abaixo do esperado");
   if (performance_level === "muito abaixo") analysisParts.push("desempenho muito abaixo do esperado");
-  if (kills >= 20) analysisParts.push("alto impacto de kills");
-  if (adr >= 90) analysisParts.push("bom dano médio");
-  if (kd >= 1.2) analysisParts.push("diferença positiva no KD");
-  if (mvps >= 3) analysisParts.push("performance de MVP");
+  if (kills >= 22) analysisParts.push("alta quantidade de kills");
+  if (adr >= 95) analysisParts.push("excelente dano médio");
+  if (kd >= 1.3) analysisParts.push("K/D muito positivo");
+  if (rws >= 14) analysisParts.push("impacto de rounds");
+  if (mvps >= 4) analysisParts.push("múltiplas performances de MVP");
 
   const analysis = analysisParts.length > 0
-    ? `MVP da rodada com ${analysisParts.join(", ")}`
-    : "Desempenho avaliado de acordo com o pote e impacto real.";
+    ? `${analysisParts.join(", ")}`
+    : "Desempenho avaliado de acordo com o pote e expected rating.";
 
   return {
     nickname,
