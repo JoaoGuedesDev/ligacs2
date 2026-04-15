@@ -1,124 +1,99 @@
+import { Trophy, Star, Zap, Skull, TrendingUp, Target, Shield, Sword, MousePointer2 } from "lucide-react";
+import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
-import { Trophy, Star, Zap, Skull, TrendingUp, Swords, Target, Flame } from "lucide-react";
+import { INITIAL_STANDINGS, INITIAL_PLAYER_RANKINGS, MATCHES, TEAMS } from "@/data/championship";
+import { calculateStandings } from "@/lib/rankingSystem";
 
-const EPIC_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663555556800/WpZQwBq9iiiTKHLtW7HKUj/liga_tucurui_cs2_epic_ea67af19.png";
+const EPIC_IMAGE = "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=2070";
 
-const summaryStats = {
-  balaMineiraTeamAvg: 1.479,
-  melaninTeamAvg: 1.460,
-  balaMineiraKills: 149,
-  balaMineiraDeaths: 115,
-  melaninKills: 113,
-  melaninDeaths: 146,
-  balaMineiraADR: 80.8,
-  melaninADR: 67.7,
+// Helper to get pot data from rankings
+const getPots = () => {
+  const pots = [
+    { title: "POTE 1", subtitle: "ELITE (80+)", icon: Trophy, color: "from-yellow-600 to-yellow-400", min: 80, max: 200 },
+    { title: "POTE 2", subtitle: "ALTO NÍVEL (70–79)", icon: Star, color: "from-blue-600 to-blue-400", min: 70, max: 79 },
+    { title: "POTE 3", subtitle: "COMPETITIVO (60–69)", icon: Zap, color: "from-purple-600 to-purple-400", min: 60, max: 69 },
+    { title: "POTE 4", subtitle: "INTERMEDIÁRIO (50–59)", icon: Zap, color: "from-cyan-600 to-cyan-400", min: 50, max: 59 },
+    { title: "POTE 5", subtitle: "BASE (≤49)", icon: Skull, color: "from-red-600 to-red-400", min: 0, max: 49 },
+  ];
+
+  return pots.map(pot => {
+    const potPlayers = Object.entries(INITIAL_PLAYER_RANKINGS)
+      .filter(([_, data]) => data.currentScore >= pot.min && data.currentScore <= pot.max)
+      .map(([name, data]) => {
+        // Calculate average rating from MATCHES
+        let totalRating = 0;
+        let matchCount = 0;
+        MATCHES.forEach(m => {
+          const p = [...m.team1Players, ...m.team2Players].find(tp => tp.name === name);
+          if (p) {
+            totalRating += p.rating;
+            matchCount++;
+          }
+        });
+
+        return {
+          name,
+          initial: data.scoreHistory[0],
+          current: data.currentScore,
+          rating: matchCount > 0 ? totalRating / matchCount : 0,
+          status: data.movement === "↑" ? "subindo" : data.movement === "↓" ? "em risco" : "estável"
+        };
+      });
+
+    return { ...pot, players: potPlayers };
+  });
 };
 
-const duelsData = [
-  { player: "roblNN", team: "Bala Mineira", firstKills: 8, multikills: "3x 3k", headshots: 20, hsPercent: 60.6 },
-  { player: "Eltinfps", team: "Bala Mineira", firstKills: 3, multikills: "10x 2k", headshots: 12, hsPercent: 38.7 },
-  { player: "ffzeraa", team: "Bala Mineira", firstKills: 5, multikills: "4x 4k", headshots: 14, hsPercent: 45.2 },
-  { player: "GuhGod", team: "Bala Mineira", firstKills: 4, multikills: "1x 4k, 3x 3k", headshots: 16, hsPercent: 53.3 },
-  { player: "tturato", team: "Bala Mineira", firstKills: 2, multikills: "1x 3k", headshots: 13, hsPercent: 54.2 },
-  { player: "Te1xa", team: "100% MELANINA", firstKills: 2, multikills: "1x 3k", headshots: 14, hsPercent: 46.7 },
-  { player: "ARLLIMA", team: "100% MELANINA", firstKills: 1, multikills: "1x 4k, 2x 3k", headshots: 12, hsPercent: 48.0 },
-  { player: "fiskaummm", team: "100% MELANINA", firstKills: 1, multikills: "3x 3k", headshots: 10, hsPercent: 50.0 },
-  { player: "VG-Toletinho", team: "100% MELANINA", firstKills: 0, multikills: "1x 3k", headshots: 14, hsPercent: 53.8 },
-  { player: "Luketa13", team: "100% MELANINA", firstKills: 0, multikills: "0", headshots: 6, hsPercent: 50.0 },
-];
-
-const tacticalInsights = [
-  { title: "Dominância em First Kills", description: "roblNN liderou com 8 first kills, estabelecendo controle inicial das rodadas", team: "Bala Mineira", icon: Target },
-  { title: "Multikills Decisivos", description: "ffzeraa com 4x 4k foi crucial para vitória, enquanto 100% MELANINA teve apenas 1x 4k", team: "Bala Mineira", icon: Flame },
-  { title: "KAST Superior", description: "GuhGod 88.9%, roblNN 86.3% vs Luketa13 32% - diferença crítica em impacto", team: "Bala Mineira", icon: Swords },
-  { title: "Duelos Perdidos", description: "100% MELANINA com K/D 0.77 vs 1.30 - perdeu consistentemente confrontos 1v1", team: "100% MELANINA", icon: Skull },
-];
-
-const matchStats = [
-  { player: "ffzeraa", team: "Bala Mineira", damage: 339, utility: 102, rws: 12.8, rating: 1.611 },
-  { player: "Eltinfps", team: "Bala Mineira", damage: 413, utility: 96, rws: 15.6, rating: 1.577 },
-  { player: "tturato", team: "Bala Mineira", damage: 333, utility: 79, rws: 12.6, rating: 0.932 },
-  { player: "GuhGod", team: "Bala Mineira", damage: 337, utility: 81, rws: 12.8, rating: 1.365 },
-  { player: "roblNN", team: "Bala Mineira", damage: 95, utility: 74, rws: 3.6, rating: 1.908 },
-  { player: "Te1xa", team: "100% MELANINA", damage: 106, utility: 75, rws: 0, rating: 1.590 },
-  { player: "Luketa13", team: "100% MELANINA", damage: 299, utility: 60, rws: 0, rating: 1.198 },
-  { player: "ARLLIMA", team: "100% MELANINA", damage: 43, utility: 54, rws: 0, rating: 1.749 },
-  { player: "VG-Toletinho", team: "100% MELANINA", damage: 68, utility: 58, rws: 0, rating: 1.552 },
-  { player: "fiskaummm", team: "100% MELANINA", damage: 203, utility: 76, rws: 0, rating: 1.212 },
-];
-
-const standings = [
-  { team: "BALA MINEIRA", wins: 1, draws: 0, losses: 0, points: 3 },
-  { team: "BONDE DO FRANJA", wins: 0, draws: 0, losses: 0, points: 0 },
-  { team: "OS PIKINHAS", wins: 0, draws: 0, losses: 0, points: 0 },
-  { team: "100% MELANINA", wins: 0, draws: 0, losses: 1, points: 0 },
-];
-
-const pots = [
-  {
-    title: "POTE 1",
-    subtitle: "ELITE (80+)",
-    icon: Trophy,
-    color: "from-yellow-600 to-yellow-400",
-    players: [
-      { name: "rob1NN", initial: 80, current: 86, rating: 1.25, status: "consolidado" },
-      { name: "Eltinfps", initial: 70, current: 82, rating: 1.30, status: "MVP / subindo" },
-      { name: "Cássio", initial: 80, current: 80, rating: 0, status: "não jogou" },
-      { name: "TT", initial: 80, current: 80, rating: 0, status: "não jogou" },
-    ],
-  },
-  {
-    title: "POTE 2",
-    subtitle: "ALTO NÍVEL (70–79)",
-    icon: Star,
-    color: "from-blue-600 to-blue-400",
-    players: [
-      { name: "Te1xa", initial: 70, current: 73, rating: 1.05, status: "estável" },
-      { name: "ARLLIMA (MMT)", initial: 80, current: 70, rating: 0.95, status: "caiu forte" },
-      { name: "LALO", initial: 70, current: 70, rating: 0, status: "não jogou" },
-      { name: "RICARDO", initial: 70, current: 70, rating: 0, status: "não jogou" },
-    ],
-  },
-  {
-    title: "POTE 3",
-    subtitle: "COMPETITIVO (60–69)",
-    icon: Zap,
-    color: "from-purple-600 to-purple-400",
-    players: [
-      { name: "ffzera", initial: 60, current: 66, rating: 1.20, status: "consistente" },
-      { name: "GuhGod", initial: 50, current: 61, rating: 1.27, status: "subindo forte" },
-      { name: "KRANIO", initial: 60, current: 60, rating: 0, status: "não jogou" },
-      { name: "BLACK", initial: 60, current: 60, rating: 0, status: "não jogou" },
-    ],
-  },
-  {
-    title: "POTE 4",
-    subtitle: "INTERMEDIÁRIO (50–59)",
-    icon: Zap,
-    color: "from-cyan-600 to-cyan-400",
-    players: [
-      { name: "fiskaum", initial: 60, current: 58, rating: 0.85, status: "em risco" },
-      { name: "VG-Toletinho", initial: 50, current: 52, rating: 1.00, status: "neutro" },
-      { name: "Felipe", initial: 50, current: 50, rating: 0, status: "não jogou" },
-      { name: "bruxo", initial: 50, current: 50, rating: 0, status: "não jogou" },
-      { name: "TRV", initial: 50, current: 50, rating: 0, status: "não jogou" },
-    ],
-  },
-  {
-    title: "POTE 5",
-    subtitle: "BASE (≤49)",
-    icon: Skull,
-    color: "from-red-600 to-red-400",
-    players: [
-      { name: "tturato", initial: 40, current: 43, rating: 1.04, status: "leve alta" },
-      { name: "Luketa", initial: 40, current: 35, rating: 0.85, status: "crítico" },
-      { name: "MESSIAS", initial: 40, current: 40, rating: 0, status: "não jogou" },
-      { name: "Dunglesss", initial: 40, current: 40, rating: 0, status: "não jogou" },
-    ],
-  },
-];
+const pots = getPots();
 
 export default function Home() {
+  const standings = calculateStandings(MATCHES, TEAMS);
+  // Get latest match stats (The very last match in the array)
+  const latestMatch = MATCHES[MATCHES.length - 1];
+  const latestMatches = [latestMatch];
+  
+  // Calculate aggregate stats for latest matches
+  const latestStats = latestMatches.reduce((acc, m) => {
+    acc.team1.name = m.team1;
+    acc.team2.name = m.team2;
+    acc.team1.score = m.score1;
+    acc.team2.score = m.score2;
+    acc.team1.kills = m.team1Stats.totalKills;
+    acc.team2.kills = m.team2Stats.totalKills;
+    acc.team1.adr = m.team1Stats.avgADR;
+    acc.team2.adr = m.team2Stats.avgADR;
+    return acc;
+  }, { 
+    team1: { name: "", score: 0, kills: 0, adr: 0 }, 
+    team2: { name: "", score: 0, kills: 0, adr: 0 } 
+  });
+
+  // Get highlights from all players
+  const allPlayersPerformance = (() => {
+    const players: Record<string, { name: string, rating: number, matches: number, adr: number, rws: number }> = {};
+    MATCHES.forEach(m => {
+      [...m.team1Players, ...m.team2Players].forEach(p => {
+        if (!players[p.name]) players[p.name] = { name: p.name, rating: 0, matches: 0, adr: 0, rws: 0 };
+        players[p.name].rating += p.rating;
+        players[p.name].adr += p.adr;
+        players[p.name].rws += p.rws;
+        players[p.name].matches++;
+      });
+    });
+    return Object.values(players).map(p => ({
+      ...p,
+      rating: p.rating / p.matches,
+      adr: p.adr / p.matches,
+      rws: p.rws / p.matches
+    })).sort((a, b) => b.rating - a.rating);
+  })();
+
+  // Get MVP and highlights from the latest match
+  const latestMatchPlayers = [...latestMatch.team1Players, ...latestMatch.team2Players];
+  const roundMVP = [...latestMatchPlayers].sort((a, b) => b.rws - a.rws)[0];
+  const roundTopRating = [...latestMatchPlayers].sort((a, b) => b.rating - a.rating)[0];
+  const roundTopADR = [...latestMatchPlayers].sort((a, b) => b.adr - a.adr)[0];
+
   return (    <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="relative w-full h-screen overflow-hidden">
@@ -150,15 +125,15 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">MVP da Rodada</p>
-                <p className="font-bold text-green-400">Eltinfps (15.6 RWS)</p>
+                <p className="font-bold text-green-400">{roundMVP.name} ({roundMVP.rws.toFixed(1)} RWS)</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Maior Rating</p>
-                <p className="font-bold text-green-400">rob1NN (1.908)</p>
+                <p className="font-bold text-green-400">{roundTopRating.name} ({roundTopRating.rating.toFixed(3)})</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Maior Dano</p>
-                <p className="font-bold text-green-400">Eltinfps (413)</p>
+                <p className="text-muted-foreground">Maior ADR</p>
+                <p className="font-bold text-green-400">{roundTopADR.name} ({roundTopADR.adr.toFixed(1)})</p>
               </div>
             </div>
           </div>
@@ -185,7 +160,22 @@ export default function Home() {
                     key={idx}
                     className="border-b border-border/30 hover:bg-card/50 transition-colors"
                   >
-                    <td className="py-4 px-4 font-semibold text-foreground">{team.team}</td>
+                    <td className="py-4 px-4 font-semibold text-foreground flex items-center gap-3">
+                      <div className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded overflow-hidden">
+                        {TEAMS.find(t => t.name === team.team)?.logo && (
+                          <img 
+                            src={TEAMS.find(t => t.name === team.team)?.logo} 
+                            alt="" 
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[10px] font-bold text-primary/40">${team.team[0]}</span>`;
+                            }}
+                          />
+                        )}
+                      </div>
+                      {team.team}
+                    </td>
                     <td className="text-center py-4 px-4 text-foreground">{team.wins}</td>
                     <td className="text-center py-4 px-4 text-foreground">{team.draws}</td>
                     <td className="text-center py-4 px-4 text-foreground">{team.losses}</td>
@@ -202,172 +192,109 @@ export default function Home() {
       <section className="py-16 px-4 md:px-8 bg-card/50">
         <div className="max-w-6xl mx-auto">
           <div className="mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">ESTATÍSTICAS DA PARTIDA</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">ÚLTIMOS CONFRONTOS</h2>
             <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Bala Mineira Stats */}
             <Card className="bg-gradient-to-br from-green-900/20 to-green-800/10 border-green-500/30">
-              <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 text-white">
-                <h3 className="text-2xl font-bold">BALA MINEIRA</h3>
-                <p className="text-sm opacity-90">Vitória 2x0</p>
+              <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 text-white flex items-center gap-4">
+                {TEAMS.find(t => t.name === latestStats.team1.name)?.logo && (
+                  <img src={TEAMS.find(t => t.name === latestStats.team1.name)?.logo} alt="" className="w-12 h-12 object-contain bg-white/10 p-1 rounded" />
+                )}
+                <div>
+                  <h3 className="text-2xl font-bold">{latestStats.team1.name}</h3>
+                  <p className="text-sm opacity-90">Score Acumulado: {latestStats.team1.score}</p>
+                </div>
               </div>
               <div className="p-6 space-y-3">
                 <div className="flex justify-between items-center border-b border-border/20 pb-2">
-                  <span className="text-muted-foreground">Dano Total</span>
-                  <span className="font-bold text-primary">1.117</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-border/20 pb-2">
-                  <span className="text-muted-foreground">Utilidades</span>
-                  <span className="font-bold text-primary">432</span>
+                  <span className="text-muted-foreground">Kills Totais</span>
+                  <span className="font-bold text-primary">{latestStats.team1.kills}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Eficiência</span>
-                  <span className="font-bold text-green-400">+2.58x</span>
+                  <span className="text-muted-foreground">ADR Média</span>
+                  <span className="font-bold text-green-400">{latestStats.team1.adr.toFixed(1)}</span>
                 </div>
               </div>
             </Card>
 
-            {/* 100% MELANINA Stats */}
             <Card className="bg-gradient-to-br from-red-900/20 to-red-800/10 border-red-500/30">
-              <div className="bg-gradient-to-r from-red-600 to-red-500 p-6 text-white">
-                <h3 className="text-2xl font-bold">100% MELANINA</h3>
-                <p className="text-sm opacity-90">Derrota 0x2</p>
+              <div className="bg-gradient-to-r from-red-600 to-red-500 p-6 text-white flex items-center gap-4">
+                {TEAMS.find(t => t.name === latestStats.team2.name)?.logo && (
+                  <img src={TEAMS.find(t => t.name === latestStats.team2.name)?.logo} alt="" className="w-12 h-12 object-contain bg-white/10 p-1 rounded" />
+                )}
+                <div>
+                  <h3 className="text-2xl font-bold">{latestStats.team2.name}</h3>
+                  <p className="text-sm opacity-90">Score Acumulado: {latestStats.team2.score}</p>
+                </div>
               </div>
               <div className="p-6 space-y-3">
                 <div className="flex justify-between items-center border-b border-border/20 pb-2">
-                  <span className="text-muted-foreground">Dano Total</span>
-                  <span className="font-bold text-primary">719</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-border/20 pb-2">
-                  <span className="text-muted-foreground">Utilidades</span>
-                  <span className="font-bold text-primary">323</span>
+                  <span className="text-muted-foreground">Kills Totais</span>
+                  <span className="font-bold text-primary">{latestStats.team2.kills}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Eficiência</span>
-                  <span className="font-bold text-red-400">-2.22x</span>
+                  <span className="text-muted-foreground">ADR Média</span>
+                  <span className="font-bold text-red-400">{latestStats.team2.adr.toFixed(1)}</span>
                 </div>
               </div>
             </Card>
-          </div>
-
-          {/* Player Performance Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b-2 border-primary/30">
-                  <th className="text-left py-3 px-3 text-primary font-bold">Jogador</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Time</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Dano</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Utilidades</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">RWS</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {matchStats.map((stat, idx) => (
-                  <tr key={idx} className="border-b border-border/30 hover:bg-card/50 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-foreground">{stat.player}</td>
-                    <td className="text-center py-3 px-3 text-foreground text-xs">
-                      <span className={`px-2 py-1 rounded ${stat.team === "Bala Mineira" ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"}`}>
-                        {stat.team === "Bala Mineira" ? "BM" : "100%"}
-                      </span>
-                    </td>
-                    <td className="text-center py-3 px-3 text-foreground">{stat.damage}</td>
-                    <td className="text-center py-3 px-3 text-foreground">{stat.utility}</td>
-                    <td className="text-center py-3 px-3 font-bold text-primary">{stat.rws.toFixed(1)}</td>
-                    <td className="text-center py-3 px-3 font-bold text-primary">{stat.rating.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </div>
       </section>
 
-      {/* Summary Section */}
-      <section className="py-16 px-4 md:px-8 bg-gradient-to-b from-card/50 to-background">
+      {/* Pots Section */}
+      <section className="py-16 px-4 md:px-8 bg-background">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">RESUMO TÁTICO</h2>
-            <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
+          <div className="mb-12 text-center">
+            <h2 className="text-4xl md:text-6xl font-black text-primary mb-4 tracking-tighter">OS POTES</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Distribuição de jogadores baseada em <span className="text-primary font-bold">SCORE ACUMULADO</span>. 
+              Rating HLTV 2.0 é exibido como <span className="text-primary font-bold">MÉDIA DE PERFORMANCE</span>.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Bala Mineira Summary */}
-            <Card className="bg-gradient-to-br from-green-900/20 to-green-800/10 border-green-500/30">
-              <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 text-white">
-                <h3 className="text-2xl font-bold">BALA MINEIRA - ANÁLISE</h3>
-                <p className="text-sm opacity-90">Vitória Dominante</p>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">K/D Ratio</p>
-                    <p className="text-2xl font-bold text-green-400">1.30</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">ADR (Avg)</p>
-                    <p className="text-2xl font-bold text-green-400">80.8</p>
-                  </div>
-                </div>
-                <div className="border-t border-border/20 pt-4">
-                  <p className="text-xs text-muted-foreground mb-2">Destaques</p>
-                  <ul className="space-y-1 text-sm">
-                    <li>✓ 8 First Kills (roblNN)</li>
-                    <li>✓ 4x 4k (ffzeraa)</li>
-                    <li>✓ KAST 88.9% (GuhGod)</li>
-                  </ul>
-                </div>
-              </div>
-            </Card>
-
-            {/* 100% MELANINA Summary */}
-            <Card className="bg-gradient-to-br from-red-900/20 to-red-800/10 border-red-500/30">
-              <div className="bg-gradient-to-r from-red-600 to-red-500 p-6 text-white">
-                <h3 className="text-2xl font-bold">100% MELANINA - ANÁLISE</h3>
-                <p className="text-sm opacity-90">Pontos de Melhoria</p>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">K/D Ratio</p>
-                    <p className="text-2xl font-bold text-red-400">0.77</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">ADR (Avg)</p>
-                    <p className="text-2xl font-bold text-red-400">67.7</p>
-                  </div>
-                </div>
-                <div className="border-t border-border/20 pt-4">
-                  <p className="text-xs text-muted-foreground mb-2">Problemas Identificados</p>
-                  <ul className="space-y-1 text-sm">
-                    <li>✗ Duelos 1v1 perdidos</li>
-                    <li>✗ Luketa13 com 32% KAST</li>
-                    <li>✗ Apenas 1x 4k no time</li>
-                  </ul>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Tactical Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tacticalInsights.map((insight, idx) => {
-              const IconComponent = insight.icon;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {pots.map((pot, idx) => {
+              const PotIcon = pot.icon;
               return (
-                <Card key={idx} className="bg-card/80 backdrop-blur border-primary/20 hover:border-primary/50 transition-all">
-                  <div className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-lg ${insight.team === "Bala Mineira" ? "bg-green-500/20" : "bg-red-500/20"}`}>
-                        <IconComponent className={`w-6 h-6 ${insight.team === "Bala Mineira" ? "text-green-400" : "text-red-400"}`} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-foreground mb-2">{insight.title}</h4>
-                        <p className="text-sm text-muted-foreground">{insight.description}</p>
-                      </div>
+                <Card key={idx} className="bg-card/50 border-primary/20 flex flex-col overflow-hidden">
+                  <div className={`bg-gradient-to-r ${pot.color} p-6 text-white`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <PotIcon className="w-8 h-8" />
+                      <span className="text-xs font-bold px-2 py-1 bg-black/20 rounded uppercase tracking-wider">
+                        {pot.subtitle}
+                      </span>
                     </div>
+                    <h3 className="text-3xl font-black">{pot.title}</h3>
+                  </div>
+                  <div className="p-6 flex-1 flex flex-col gap-4">
+                    {pot.players.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">Nenhum jogador neste pote</p>
+                    ) : (
+                      pot.players.map((player, pIdx) => (
+                        <div key={pIdx} className="flex items-center justify-between p-3 rounded-lg bg-background/40 border border-primary/5 hover:border-primary/20 transition-all group">
+                          <div className="flex flex-col">
+                            <Link href={`/player/${encodeURIComponent(player.name)}`} className="font-bold text-foreground group-hover:text-primary transition-colors cursor-pointer">
+                              {player.name}
+                            </Link>
+                            <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-muted-foreground">
+                              <span>Score: {player.current}</span>
+                              <span className="text-primary/30">•</span>
+                              <span>Rating: {player.rating.toFixed(2)}</span>
+                            </div>
+                          </div>
+                          <div className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                            player.status === "subindo" ? "bg-green-500/20 text-green-400" :
+                            player.status === "em risco" ? "bg-red-500/20 text-red-400" :
+                            "bg-primary/20 text-primary"
+                          }`}>
+                            {player.status}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </Card>
               );
@@ -376,43 +303,110 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Duels Section */}
-      <section className="py-16 px-4 md:px-8 bg-background">
+      {/* Tactical Analysis Section */}
+      <section className="py-16 px-4 md:px-8 bg-card/50">
         <div className="max-w-6xl mx-auto">
           <div className="mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">CONFRONTOS DIRETOS (DUELS)</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">RESUMO TÁTICO</h2>
             <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b-2 border-primary/30">
-                  <th className="text-left py-3 px-3 text-primary font-bold">Jogador</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Time</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">1º Kills</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Multikills</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">Headshots</th>
-                  <th className="text-center py-3 px-3 text-primary font-bold">HS %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {duelsData.map((duel, idx) => (
-                  <tr key={idx} className="border-b border-border/30 hover:bg-card/50 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-foreground">{duel.player}</td>
-                    <td className="text-center py-3 px-3 text-foreground text-xs">
-                      <span className={`px-2 py-1 rounded ${duel.team === "Bala Mineira" ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"}`}>
-                        {duel.team === "Bala Mineira" ? "BM" : "100%"}
-                      </span>
-                    </td>
-                    <td className="text-center py-3 px-3 text-foreground font-bold">{duel.firstKills}</td>
-                    <td className="text-center py-3 px-3 text-foreground text-xs">{duel.multikills}</td>
-                    <td className="text-center py-3 px-3 text-foreground">{duel.headshots}</td>
-                    <td className="text-center py-3 px-3 font-bold text-primary">{duel.hsPercent}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Team 1 Summary */}
+            <Card className="bg-gradient-to-br from-primary/20 to-primary/10 border-primary/30">
+              <div className="bg-gradient-to-r from-primary/80 to-primary/60 p-6 text-white">
+                <h3 className="text-2xl font-bold">{latestMatch.team1} - ANÁLISE</h3>
+                <p className="text-sm opacity-90">Performance em {latestMatch.map}</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Rating Médio</p>
+                    <p className="text-2xl font-bold text-primary">{latestMatch.team1Stats.teamAvgRating.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">ADR Média</p>
+                    <p className="text-2xl font-bold text-primary">{latestMatch.team1Stats.avgADR.toFixed(1)}</p>
+                  </div>
+                </div>
+                <div className="border-t border-border/20 pt-4">
+                  <p className="text-xs text-muted-foreground mb-2">Destaques da Rodada</p>
+                  <ul className="space-y-1 text-sm">
+                    <li>✓ {latestMatch.team1Players.sort((a,b) => b.rating - a.rating)[0].name} liderando</li>
+                    <li>✓ {latestMatch.team1Players.reduce((sum, p) => sum + p.kills, 0)} Kills totais no mapa</li>
+                    <li>✓ {latestMatch.winner === latestMatch.team1 ? "Vitória conquistada" : "Luta equilibrada"}</li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+
+            {/* Team 2 Summary */}
+            <Card className="bg-gradient-to-br from-secondary/20 to-secondary/10 border-secondary/30">
+              <div className="bg-gradient-to-r from-secondary/80 to-secondary/60 p-6 text-white">
+                <h3 className="text-2xl font-bold">{latestMatch.team2} - ANÁLISE</h3>
+                <p className="text-sm opacity-90">Performance em {latestMatch.map}</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Rating Médio</p>
+                    <p className="text-2xl font-bold text-secondary-foreground">{latestMatch.team2Stats.teamAvgRating.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">ADR Média</p>
+                    <p className="text-2xl font-bold text-secondary-foreground">{latestMatch.team2Stats.avgADR.toFixed(1)}</p>
+                  </div>
+                </div>
+                <div className="border-t border-border/20 pt-4">
+                  <p className="text-xs text-muted-foreground mb-2">Destaques da Rodada</p>
+                  <ul className="space-y-1 text-sm">
+                    <li>✓ {latestMatch.team2Players.sort((a,b) => b.rating - a.rating)[0].name} liderando</li>
+                    <li>✓ {latestMatch.team2Players.reduce((sum, p) => sum + p.kills, 0)} Kills totais no mapa</li>
+                    <li>✓ {latestMatch.winner === latestMatch.team2 ? "Vitória conquistada" : "Luta equilibrada"}</li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Highlights Section */}
+      <section className="py-16 px-4 md:px-8 bg-background">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">CONQUISTAS INDIVIDUAIS</h2>
+            <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="p-6 bg-card border-primary/20 flex flex-col items-center text-center">
+              <Trophy className="w-12 h-12 text-yellow-500 mb-4" />
+              <h4 className="font-bold text-foreground">MVP Rodada 1</h4>
+              <p className="text-sm text-primary font-black">roblNN</p>
+              <p className="text-xs text-muted-foreground mt-2">1.908 Rating</p>
+            </Card>
+
+            <Card className="p-6 bg-card border-primary/20 flex flex-col items-center text-center">
+              <Sword className="w-12 h-12 text-red-500 mb-4" />
+              <h4 className="font-bold text-foreground">Entry Fragger</h4>
+              <p className="text-sm text-primary font-black">ARLLIMA</p>
+              <p className="text-xs text-muted-foreground mt-2">5 First Kills</p>
+            </Card>
+
+            <Card className="p-6 bg-card border-primary/20 flex flex-col items-center text-center">
+              <Zap className="w-12 h-12 text-blue-500 mb-4" />
+              <h4 className="font-bold text-foreground">Impacto RWS</h4>
+              <p className="text-sm text-primary font-black">Eltinfps</p>
+              <p className="text-xs text-muted-foreground mt-2">19.62 RWS</p>
+            </Card>
+
+            <Card className="p-6 bg-card border-primary/20 flex flex-col items-center text-center">
+              <Target className="w-12 h-12 text-green-500 mb-4" />
+              <h4 className="font-bold text-foreground">Sharpshooter</h4>
+              <p className="text-sm text-primary font-black">cass1n_</p>
+              <p className="text-xs text-muted-foreground mt-2">60.0% HS</p>
+            </Card>
           </div>
         </div>
       </section>
@@ -433,88 +427,39 @@ export default function Home() {
                   Métrica que mostra quanto cada jogador contribuiu para vencer as rodadas. Média profissional: 9-10 RWS.
                 </p>
                 <div className="space-y-2 text-xs">
-                  <p><span className="text-green-400 font-bold">Eltinfps:</span> 15.6 RWS (MVP)</p>
-                  <p><span className="text-green-400 font-bold">ffzeraa:</span> 12.8 RWS</p>
+                  {latestMatchPlayers.sort((a,b) => b.rws - a.rws).slice(0, 2).map((p, i) => (
+                    <p key={i}><span className="text-green-400 font-bold">{p.name}:</span> {p.rws.toFixed(1)} RWS {i === 0 ? "(MVP)" : ""}</p>
+                  ))}
                 </div>
               </div>
             </Card>
 
             <Card className="bg-card/80 backdrop-blur border-primary/20">
               <div className="p-6">
-                <h3 className="text-lg font-bold text-primary mb-4">Rating 3.0</h3>
+                <h3 className="text-lg font-bold text-primary mb-4">Rating 2.0</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Rating ajustado por economia. Considera kills, dano, sobrevivência, KAST e Round Swing.
+                  Considera kills, dano, sobrevivência, KAST e Round Swing.
                 </p>
                 <div className="space-y-2 text-xs">
-                  <p><span className="text-green-400 font-bold">rob1NN:</span> 1.908 (Elite)</p>
-                  <p><span className="text-green-400 font-bold">ARLLIMA:</span> 1.749 (Alto)</p>
+                  {latestMatchPlayers.sort((a,b) => b.rating - a.rating).slice(0, 2).map((p, i) => (
+                    <p key={i}><span className="text-green-400 font-bold">{p.name}:</span> {p.rating.toFixed(3)} ({p.rating >= 1.2 ? "Elite" : "Bom"})</p>
+                  ))}
                 </div>
               </div>
             </Card>
 
             <Card className="bg-card/80 backdrop-blur border-primary/20">
               <div className="p-6">
-                <h3 className="text-lg font-bold text-primary mb-4">Eficiência de Utilidades</h3>
+                <h3 className="text-lg font-bold text-primary mb-4">Eficiência Coletiva</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Bala Mineira utilizou 33% mais utilidades que 100% Melanina, mostrando melhor controle de mapa.
+                  Comparação de performance entre os times no mapa {latestMatch.map}.
                 </p>
                 <div className="space-y-2 text-xs">
-                  <p><span className="text-green-400 font-bold">BM:</span> 432 utilidades</p>
-                  <p><span className="text-red-400 font-bold">100%:</span> 323 utilidades</p>
+                  <p><span className="text-primary font-bold">{latestMatch.team1}:</span> {latestMatch.team1Stats.teamAvgRating.toFixed(2)} Rating</p>
+                  <p><span className="text-secondary-foreground font-bold">{latestMatch.team2}:</span> {latestMatch.team2Stats.teamAvgRating.toFixed(2)} Rating</p>
                 </div>
               </div>
             </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Pots Section */}
-      <section className="py-16 px-4 md:px-8 bg-background">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2">PROJEÇÃO DOS POTES</h2>
-            <div className="h-1 w-32 bg-gradient-to-r from-primary to-transparent rounded-full" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pots.map((pot, idx) => {
-              const IconComponent = pot.icon;
-              return (
-                <Card
-                  key={idx}
-                  className="bg-card/80 backdrop-blur border-primary/20 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/20 overflow-hidden group"
-                >
-                  <div className={`bg-gradient-to-r ${pot.color} p-6 text-white`}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <IconComponent className="w-6 h-6" />
-                      <h3 className="text-2xl font-bold">{pot.title}</h3>
-                    </div>
-                    <p className="text-sm opacity-90">{pot.subtitle}</p>
-                  </div>
-
-                  <div className="p-6 space-y-4">
-                    {pot.players.map((player, pidx) => (
-                      <div
-                        key={pidx}
-                        className="pb-4 border-b border-border/20 last:border-0 last:pb-0"
-                      >
-                        <p className="font-semibold text-foreground mb-1">{player.name}</p>
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <p>
-                            Inicial {player.initial} | Atual {player.current}{" "}
-                            <span className={player.current > player.initial ? "text-green-400" : player.current < player.initial ? "text-red-400" : ""}>
-                              {player.current > player.initial ? `+${player.current - player.initial}` : player.current < player.initial ? `${player.current - player.initial}` : "+0"}
-                            </span>
-                          </p>
-                          {player.rating > 0 && <p>Rating {player.rating.toFixed(2)}</p>}
-                          <p className="text-xs italic opacity-75">{player.status}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              );
-            })}
           </div>
         </div>
       </section>

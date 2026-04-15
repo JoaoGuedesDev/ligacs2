@@ -1,6 +1,8 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MATCHES, INITIAL_PLAYER_RANKINGS, TEAMS } from "@/data/championship";
+import { ArrowLeft, Trophy, Target, Shield, Zap, TrendingUp, TrendingDown, Minus, Skull } from "lucide-react";
 
 interface PlayerStats {
   name: string;
@@ -18,212 +20,107 @@ interface PlayerStats {
   multikills_3k: number;
   multikills_2k: number;
   mvps: number;
+  matches: number;
+  score: number;
+  movement: string;
 }
 
-// HLTV-like ratings data (from our calculation)
-const PLAYER_RATINGS: Record<string, PlayerStats> = {
-  "Eltinfps": {
-    name: "Eltinfps",
-    team: "Bala Mineira",
-    rating: 1.074,
-    kills: 31,
-    deaths: 22,
-    assists: 6,
-    adr: 87.8,
-    rws: 15.52,
-    hs_percent: 38.7,
-    kr_ratio: 0.82,
-    kd_ratio: 1.41,
-    multikills_4k: 0,
-    multikills_3k: 0,
-    multikills_2k: 10,
-    mvps: 7,
-  },
-  "ffzeraa": {
-    name: "ffzeraa",
-    team: "Bala Mineira",
-    rating: 1.065,
-    kills: 31,
-    deaths: 21,
-    assists: 8,
-    adr: 79.4,
-    rws: 14.09,
-    hs_percent: 45.2,
-    kr_ratio: 0.82,
-    kd_ratio: 1.48,
-    multikills_4k: 0,
-    multikills_3k: 4,
-    multikills_2k: 4,
-    mvps: 8,
-  },
-  "GuhGod": {
-    name: "GuhGod",
-    team: "Bala Mineira",
-    rating: 1.074,
-    kills: 30,
-    deaths: 21,
-    assists: 11,
-    adr: 88.9,
-    rws: 13.78,
-    hs_percent: 53.3,
-    kr_ratio: 0.79,
-    kd_ratio: 1.43,
-    multikills_4k: 1,
-    multikills_3k: 3,
-    multikills_2k: 5,
-    mvps: 4,
-  },
-  "roblNN": {
-    name: "roblNN",
-    team: "Bala Mineira",
-    rating: 1.074,
-    kills: 33,
-    deaths: 28,
-    assists: 8,
-    adr: 86.3,
-    rws: 13.70,
-    hs_percent: 60.6,
-    kr_ratio: 0.87,
-    kd_ratio: 1.18,
-    multikills_4k: 0,
-    multikills_3k: 3,
-    multikills_2k: 5,
-    mvps: 4,
-  },
-  "tturato": {
-    name: "tturato",
-    team: "Bala Mineira",
-    rating: 0.979,
-    kills: 24,
-    deaths: 23,
-    assists: 6,
-    adr: 68.9,
-    rws: 11.34,
-    hs_percent: 54.2,
-    kr_ratio: 0.63,
-    kd_ratio: 1.04,
-    multikills_4k: 0,
-    multikills_3k: 1,
-    multikills_2k: 5,
-    mvps: 3,
-  },
-  "Te1xa": {
-    name: "Te1xa",
-    team: "100% MELANINA",
-    rating: 0.926,
-    kills: 30,
-    deaths: 28,
-    assists: 10,
-    adr: 88.6,
-    rws: 10.04,
-    hs_percent: 46.7,
-    kr_ratio: 0.79,
-    kd_ratio: 1.07,
-    multikills_4k: 0,
-    multikills_3k: 2,
-    multikills_2k: 5,
-    mvps: 6,
-  },
-  "VG-Toletinho": {
-    name: "VG-Toletinho",
-    team: "100% MELANINA",
-    rating: 0.849,
-    kills: 26,
-    deaths: 31,
-    assists: 6,
-    adr: 62.8,
-    rws: 5.49,
-    hs_percent: 53.8,
-    kr_ratio: 0.68,
-    kd_ratio: 0.84,
-    multikills_4k: 0,
-    multikills_3k: 1,
-    multikills_2k: 7,
-    mvps: 2,
-  },
-  "ARLLIMA": {
-    name: "ARLLIMA",
-    team: "100% MELANINA",
-    rating: 0.845,
-    kills: 25,
-    deaths: 32,
-    assists: 10,
-    adr: 65.7,
-    rws: 4.87,
-    hs_percent: 48.0,
-    kr_ratio: 0.66,
-    kd_ratio: 0.78,
-    multikills_4k: 1,
-    multikills_3k: 2,
-    multikills_2k: 3,
-    mvps: 2,
-  },
-  "fiskaummm": {
-    name: "fiskaummm",
-    team: "100% MELANINA",
-    rating: 0.809,
-    kills: 20,
-    deaths: 33,
-    assists: 3,
-    adr: 61.6,
-    rws: 6.12,
-    hs_percent: 50.0,
-    kr_ratio: 0.53,
-    kd_ratio: 0.61,
-    multikills_4k: 0,
-    multikills_3k: 3,
-    multikills_2k: 2,
-    mvps: 2,
-  },
-  "Luketa13": {
-    name: "Luketa13",
-    team: "100% MELANINA",
-    rating: 0.741,
-    kills: 12,
-    deaths: 32,
-    assists: 12,
-    adr: 50.6,
-    rws: 5.06,
-    hs_percent: 50.0,
-    kr_ratio: 0.32,
-    kd_ratio: 0.38,
-    multikills_4k: 0,
-    multikills_3k: 0,
-    multikills_2k: 2,
-    mvps: 0,
-  },
-};
+// Function to calculate player stats dynamically from MATCHES
+function getPlayerStats(playerName: string): PlayerStats | null {
+  const decodedName = decodeURIComponent(playerName);
+  const playerRanking = INITIAL_PLAYER_RANKINGS[decodedName as keyof typeof INITIAL_PLAYER_RANKINGS];
+  
+  let totalKills = 0;
+  let totalDeaths = 0;
+  let totalAssists = 0;
+  let totalADR = 0;
+  let totalRWS = 0;
+  let totalRating = 0;
+  let totalHSPercent = 0;
+  let total4k = 0;
+  let total3k = 0;
+  let total2k = 0;
+  let totalMVPs = 0;
+  let matchCount = 0;
+  let teamName = "";
+
+  MATCHES.forEach(match => {
+    const playerMatchStats = [...match.team1Players, ...match.team2Players].find(p => p.name === decodedName);
+    if (playerMatchStats) {
+      if (!teamName) teamName = match.team1Players.some(p => p.name === decodedName) ? match.team1 : match.team2;
+      
+      totalKills += playerMatchStats.kills;
+      totalDeaths += playerMatchStats.deaths;
+      totalAssists += playerMatchStats.assists;
+      totalADR += playerMatchStats.adr;
+      totalRWS += playerMatchStats.rws;
+      totalRating += playerMatchStats.rating;
+      totalHSPercent += playerMatchStats.hsPercent;
+      totalMVPs += playerMatchStats.mvps || 0;
+      
+      // Parse multikills string "1x 4k, 2x 3k, 3x 2k"
+      const mkStr = playerMatchStats.multikills;
+      const match4k = mkStr.match(/(\d+)x\s*4k/);
+      const match3k = mkStr.match(/(\d+)x\s*3k/);
+      const match2k = mkStr.match(/(\d+)x\s*2k/);
+      
+      if (match4k) total4k += parseInt(match4k[1]);
+      if (match3k) total3k += parseInt(match3k[1]);
+      if (match2k) total2k += parseInt(match2k[1]);
+      
+      matchCount++;
+    }
+  });
+
+  if (matchCount === 0) return null;
+
+  return {
+    name: decodedName,
+    team: teamName,
+    // RATING É A MÉDIA DOS MAPAS (NÃO CUMULATIVO)
+    rating: totalRating / matchCount,
+    kills: totalKills,
+    deaths: totalDeaths,
+    assists: totalAssists,
+    // ADR É A MÉDIA DOS MAPAS
+    adr: totalADR / matchCount,
+    // RWS É A MÉDIA DOS MAPAS
+    rws: totalRWS / matchCount,
+    // HS% É A MÉDIA DOS MAPAS
+    hs_percent: totalHSPercent / matchCount,
+    kr_ratio: totalKills / (matchCount * 24), // Approx based on 24 rounds avg
+    kd_ratio: totalDeaths > 0 ? totalKills / totalDeaths : totalKills,
+    multikills_4k: total4k,
+    multikills_3k: total3k,
+    multikills_2k: total2k,
+    mvps: totalMVPs,
+    matches: matchCount,
+    score: playerRanking?.currentScore || 0,
+    movement: playerRanking?.movement || "→"
+  };
+}
 
 // Calculate rating quality indicator
 function getRatingQuality(rating: number): { label: string; color: string; bgColor: string } {
-  if (rating >= 1.2) return { label: "EXCELLENT", color: "text-green-400", bgColor: "from-green-900/20 to-green-800/20" };
-  if (rating >= 1.0) return { label: "GOOD", color: "text-green-400", bgColor: "from-green-900/20 to-green-800/20" };
-  if (rating >= 0.9) return { label: "AVERAGE", color: "text-yellow-400", bgColor: "from-yellow-900/20 to-yellow-800/20" };
-  return { label: "BELOW AVERAGE", color: "text-red-400", bgColor: "from-red-900/20 to-red-800/20" };
-}
-
-// Calculate metric quality
-function getMetricQuality(value: number, max: number): string {
-  const percentage = (value / max) * 100;
-  if (percentage >= 80) return "bg-green-500/30";
-  if (percentage >= 60) return "bg-yellow-500/30";
-  return "bg-red-500/30";
+  if (rating >= 1.2) return { label: "EXCELENTE", color: "text-green-400", bgColor: "from-green-900/20 to-green-800/20" };
+  if (rating >= 1.0) return { label: "BOM", color: "text-green-400", bgColor: "from-green-900/20 to-green-800/20" };
+  if (rating >= 0.9) return { label: "MÉDIO", color: "text-yellow-400", bgColor: "from-yellow-900/20 to-yellow-800/20" };
+  return { label: "ABAIXO DA MÉDIA", color: "text-red-400", bgColor: "from-red-900/20 to-red-800/20" };
 }
 
 // Stat bar component
 function StatBar({ label, value, max, unit = "" }: { label: string; value: number; max: number; unit?: string }) {
   const percentage = (value / max) * 100;
-  const quality = getMetricQuality(value, max);
 
   return (
     <div className="space-y-2">
       <div className="flex justify-between">
-        <span className="text-sm text-gray-300">{label}</span>
-        <span className="text-sm font-semibold text-white">{value.toFixed(2)}{unit}</span>
+        <span className="text-sm text-gray-400">{label}</span>
+        <span className="text-sm font-bold text-white">{value.toFixed(2)}{unit}</span>
       </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+      <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-white/5">
         <div
-          className={`h-full ${quality} rounded-full transition-all duration-300`}
+          className={`h-full bg-primary rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(var(--primary),0.5)]`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
@@ -233,177 +130,189 @@ function StatBar({ label, value, max, unit = "" }: { label: string; value: numbe
 
 export default function PlayerDetail() {
   const { name } = useParams<{ name: string }>();
-  const player = name ? PLAYER_RATINGS[decodeURIComponent(name)] : null;
+  const player = name ? getPlayerStats(name) : null;
 
   if (!player) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">Jogador não encontrado</h1>
-          <a href="/" className="text-gold-400 hover:text-gold-300">
-            Voltar para a página principal
-          </a>
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-6">
+          <div className="p-6 bg-red-500/10 rounded-full inline-block border border-red-500/20">
+            <Skull className="w-16 h-16 text-red-500" />
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-tighter">JOGADOR NÃO ENCONTRADO</h1>
+          <p className="text-slate-400 max-w-xs mx-auto">Não encontramos estatísticas para este jogador ou ele ainda não estreou na liga.</p>
+          <Link href="/">
+            <button className="flex items-center gap-2 mx-auto px-6 py-3 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 transition-all">
+              <ArrowLeft className="w-4 h-4" /> VOLTAR AO INÍCIO
+            </button>
+          </Link>
         </div>
       </div>
     );
   }
 
-  const ratingQuality = getRatingQuality(player.rating);
-  const allRatings = Object.values(PLAYER_RATINGS);
-  const avgRating = allRatings.reduce((sum, p) => sum + p.rating, 0) / allRatings.length;
-  const maxADR = Math.max(...allRatings.map(p => p.adr));
-  const maxRWS = Math.max(...allRatings.map(p => p.rws));
-  const maxKills = Math.max(...allRatings.map(p => p.kills));
+  const quality = getRatingQuality(player.rating);
+  const MovementIcon = player.movement === "↑" ? TrendingUp : player.movement === "↓" ? TrendingDown : Minus;
+  const movementColor = player.movement === "↑" ? "text-green-400" : player.movement === "↓" ? "text-red-400" : "text-slate-400";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-12 px-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <a href="/" className="text-gold-400 hover:text-gold-300 text-sm font-semibold mb-4 inline-block">
-            ← Voltar
-          </a>
+    <div className="min-h-screen bg-slate-950 text-slate-100 pb-20">
+      {/* Header / Banner */}
+      <div className="relative h-64 md:h-80 overflow-hidden bg-slate-900">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/50 to-slate-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
+        
+        <div className="relative max-w-6xl mx-auto h-full flex flex-col justify-end p-6 md:p-10">
+          <Link href="/">
+            <button className="absolute top-6 left-6 md:left-10 flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">
+              <ArrowLeft className="w-4 h-4" /> VOLTAR
+            </button>
+          </Link>
+
+          <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-10">
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-primary/20 flex items-center justify-center shadow-2xl relative overflow-hidden">
+              {TEAMS.find(t => t.name === player.team)?.logo && (
+                <img 
+                  src={TEAMS.find(t => t.name === player.team)?.logo} 
+                  alt={player.team} 
+                  className="w-full h-full object-cover opacity-80"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-5xl md:text-7xl font-black text-primary/20">${player.name[0]}</span>`;
+                  }}
+                />
+              )}
+              <div className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground text-xs font-black px-3 py-1 rounded-full shadow-lg border-2 border-slate-950">
+                {TEAMS.find(t => t.name === player.team)?.shortName || "CS2"}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold px-3 py-1">
+                JOGADOR PROFISSIONAL
+              </Badge>
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white">{player.name}</h1>
+              <div className="flex items-center gap-4 text-slate-400 font-bold uppercase text-sm">
+                <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-primary" /> {player.team}</span>
+                <span className="text-slate-700">•</span>
+                <span className="flex items-center gap-1.5"><Target className="w-4 h-4 text-primary" /> {player.matches} Partidas</span>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Main Card */}
+      <div className="max-w-6xl mx-auto p-6 md:p-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Player Info & Rating */}
-          <div className="lg:col-span-1">
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-gold-500/20 overflow-hidden">
-              <div className="p-8 text-center">
-                {/* Player Name & Team */}
-                <h1 className="text-4xl font-bold text-white mb-2">{player.name}</h1>
-                <Badge className="bg-gold-500/20 text-gold-300 border-gold-500/30 mb-6">
-                  {player.team}
-                </Badge>
+          
+          {/* Left Column - Main Stats */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="p-6 bg-slate-900/50 border-white/5 flex flex-col items-center text-center group hover:border-primary/30 transition-all">
+                <span className="text-xs font-bold text-slate-500 uppercase mb-2">Rating HLTV 2.0</span>
+                <span className={`text-4xl font-black ${quality.color}`}>{player.rating.toFixed(2)}</span>
+                <span className="text-[10px] font-black text-slate-600 mt-2 uppercase tracking-widest">{quality.label}</span>
+              </Card>
 
-                {/* Rating Circle */}
-                <div className="relative w-48 h-48 mx-auto mb-8">
-                  <svg className="w-full h-full" viewBox="0 0 200 200">
-                    {/* Background circle */}
-                    <circle cx="100" cy="100" r="90" fill="none" stroke="#1e293b" strokeWidth="2" />
-                    
-                    {/* Rating arc */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r="90"
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="8"
-                      strokeDasharray={`${(player.rating / 2.5) * 565.5} 565.5`}
-                      strokeLinecap="round"
-                      transform="rotate(-90 100 100)"
-                    />
-                  </svg>
-                  
-                  {/* Center text */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div className={`text-5xl font-bold ${ratingQuality.color}`}>
-                      {player.rating.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">RATING 3.0</div>
-                    <div className={`text-xs font-semibold mt-2 ${ratingQuality.color}`}>
-                      {ratingQuality.label}
-                    </div>
+              <Card className="p-6 bg-slate-900/50 border-white/5 flex flex-col items-center text-center group hover:border-primary/30 transition-all">
+                <span className="text-xs font-bold text-slate-500 uppercase mb-2">Score Ranking</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-4xl font-black text-white">{player.score}</span>
+                  <div className={`flex items-center ${movementColor}`}>
+                    <MovementIcon className="w-4 h-4" />
                   </div>
                 </div>
+                <span className="text-[10px] font-black text-slate-600 mt-2 uppercase tracking-widest">POTE {player.score >= 80 ? '1' : player.score >= 70 ? '2' : player.score >= 60 ? '3' : player.score >= 50 ? '4' : '5'}</span>
+              </Card>
 
-                {/* Rating vs Average */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-gray-300">
-                    <span>vs Average</span>
-                    <span className={player.rating > avgRating ? "text-green-400" : "text-red-400"}>
-                      {(player.rating - avgRating).toFixed(3)}
-                    </span>
-                  </div>
-                </div>
+              <Card className="p-6 bg-slate-900/50 border-white/5 flex flex-col items-center text-center group hover:border-primary/30 transition-all">
+                <span className="text-xs font-bold text-slate-500 uppercase mb-2">K/D Ratio</span>
+                <span className={`text-4xl font-black ${player.kd_ratio >= 1 ? 'text-green-400' : 'text-red-400'}`}>{player.kd_ratio.toFixed(2)}</span>
+                <span className="text-[10px] font-black text-slate-600 mt-2 uppercase tracking-widest">{player.kills}K / {player.deaths}D</span>
+              </Card>
+
+              <Card className="p-6 bg-slate-900/50 border-white/5 flex flex-col items-center text-center group hover:border-primary/30 transition-all">
+                <span className="text-xs font-bold text-slate-500 uppercase mb-2">ADR Média</span>
+                <span className="text-4xl font-black text-white">{player.adr.toFixed(1)}</span>
+                <span className="text-[10px] font-black text-slate-600 mt-2 uppercase tracking-widest">Dano por Round</span>
+              </Card>
+            </div>
+
+            <Card className="p-8 bg-slate-900/50 border-white/5">
+              <h3 className="text-xl font-black text-white mb-8 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" /> PERFORMANCE TÉCNICA
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                <StatBar label="Kill/Death Ratio" value={player.kd_ratio} max={2.0} />
+                <StatBar label="Average Damage (ADR)" value={player.adr} max={120} />
+                <StatBar label="Headshot Percentage" value={player.hs_percent} max={100} unit="%" />
+                <StatBar label="Round Win Share (RWS)" value={player.rws} max={20} />
+                <StatBar label="Impact (Rating 2.0)" value={player.rating} max={2.0} />
+                <StatBar label="Kills per Round" value={player.kr_ratio} max={1.2} />
               </div>
             </Card>
           </div>
 
-          {/* Right: Detailed Stats */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Core Stats */}
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-gold-500/20 p-6">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <span className="w-1 h-6 bg-gold-500 rounded-full" />
-                Estatísticas Principais
-              </h2>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="text-sm text-gray-400 mb-1">Kills / Deaths</div>
-                  <div className="text-3xl font-bold text-white">
-                    {player.kills} / {player.deaths}
-                  </div>
-                  <div className="text-sm text-gray-400 mt-1">K/D: {player.kd_ratio.toFixed(2)}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-400 mb-1">Assists</div>
-                  <div className="text-3xl font-bold text-white">{player.assists}</div>
-                  <div className="text-sm text-gray-400 mt-1">MVPs: {player.mvps}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-400 mb-1">ADR</div>
-                  <div className="text-3xl font-bold text-white">{player.adr.toFixed(1)}</div>
-                  <div className="text-sm text-gray-400 mt-1">Damage per Round</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-400 mb-1">RWS</div>
-                  <div className="text-3xl font-bold text-white">{player.rws.toFixed(2)}%</div>
-                  <div className="text-sm text-gray-400 mt-1">Round Win Share</div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Performance Bars */}
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-gold-500/20 p-6">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <span className="w-1 h-6 bg-gold-500 rounded-full" />
-                Performance Detalhada
-              </h2>
-
+          {/* Right Column - Awards & Multi-kills */}
+          <div className="space-y-8">
+            <Card className="p-8 bg-slate-900/50 border-white/5 h-full">
+              <h3 className="text-xl font-black text-white mb-8 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-primary" /> CONQUISTAS
+              </h3>
+              
               <div className="space-y-6">
-                <StatBar label="Kills" value={player.kills} max={maxKills} />
-                <StatBar label="ADR" value={player.adr} max={maxADR} />
-                <StatBar label="RWS" value={player.rws} max={maxRWS} unit="%" />
-                <StatBar label="Headshot %" value={player.hs_percent} max={100} unit="%" />
-                <StatBar label="K/D Ratio" value={player.kd_ratio} max={2} />
-                <StatBar label="K/R Ratio" value={player.kr_ratio} max={1.2} />
-              </div>
-            </Card>
+                <div className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-white/5 group hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Trophy className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white uppercase tracking-tighter">MVPs Ganhos</p>
+                      <p className="text-xs text-slate-500">Destaque da Partida</p>
+                    </div>
+                  </div>
+                  <span className="text-2xl font-black text-primary">{player.mvps}</span>
+                </div>
 
-            {/* Multi-kills */}
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-gold-500/20 p-6">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <span className="w-1 h-6 bg-gold-500 rounded-full" />
-                Momentos Explosivos
-              </h2>
+                <div className="space-y-3 pt-4 border-t border-white/5">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Multi-Kills Totais</p>
+                  
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-bold text-slate-300">Ace (5K)</span>
+                    <Badge className="bg-primary/20 text-primary border-primary/20">0</Badge>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-bold text-slate-300">Quad Kill (4K)</span>
+                    <Badge className="bg-primary/20 text-primary border-primary/20">{player.multikills_4k}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-bold text-slate-300">Triple Kill (3K)</span>
+                    <Badge className="bg-primary/20 text-primary border-primary/20">{player.multikills_3k}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-bold text-slate-300">Double Kill (2K)</span>
+                    <Badge className="bg-primary/20 text-primary border-primary/20">{player.multikills_2k}</Badge>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-red-400">{player.multikills_4k}</div>
-                  <div className="text-xs text-gray-400 mt-2">4K</div>
-                </div>
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-orange-400">{player.multikills_3k}</div>
-                  <div className="text-xs text-gray-400 mt-2">3K</div>
-                </div>
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-400">{player.multikills_2k}</div>
-                  <div className="text-xs text-gray-400 mt-2">2K</div>
-                </div>
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-gold-400">{player.mvps}</div>
-                  <div className="text-xs text-gray-400 mt-2">MVPs</div>
+                <div className="pt-6">
+                  <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                    <p className="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
+                      <TrendingUp className="w-3 h-3" /> Análise de Scout
+                    </p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {player.rating >= 1.2 
+                        ? "Jogador extremamente dominante com alto impacto em rounds decisivos. Pilar tático da equipe."
+                        : player.rating >= 1.0
+                        ? "Performance sólida e consistente. Contribui positivamente para o equilíbrio do time."
+                        : "Jogador com potencial de crescimento. Necessita melhorar o impacto individual em rodadas de pressão."}
+                    </p>
+                  </div>
                 </div>
               </div>
             </Card>
           </div>
+
         </div>
       </div>
     </div>

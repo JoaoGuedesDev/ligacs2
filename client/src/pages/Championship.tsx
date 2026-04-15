@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
+import { ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { MATCHES, INITIAL_STANDINGS, TEAMS, INITIAL_PLAYER_RANKINGS } from "@/data/championship";
-import { getPoteLabel, getPoteRange, getScoreColor, getMovementColor, formatScoreChange } from "@/lib/rankingSystem";
+import { getPoteLabel, getPoteRange, getScoreColor, getMovementColor, formatScoreChange, calculateStandings } from "@/lib/rankingSystem";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 interface PlayerRanking {
@@ -33,6 +35,8 @@ interface TeamStats {
 export default function Championship() {
   const [sortBy, setSortBy] = useState<"rating" | "kills" | "adr" | "rws">("rating");
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+
+  const standings = useMemo(() => calculateStandings(MATCHES, TEAMS), []);
 
   // Calculate player rankings
   const playerRankings = useMemo(() => {
@@ -68,10 +72,15 @@ export default function Championship() {
     return Object.values(players)
       .map((p) => ({
         ...p,
+        // Rating é a média aritmética dos ratings de cada mapa/partida
         rating: p.rating / p.matches,
+        // ADR também é a média por mapa
         adr: p.adr / p.matches,
+        // RWS é a média por mapa
         rws: p.rws / p.matches,
+        // HS% é a média por mapa
         hsPercent: p.hsPercent / p.matches,
+        // K/D Ratio é calculado sobre o total de kills/deaths acumulados (não é média de médias)
         kdRatio: p.deaths > 0 ? p.kills / p.deaths : p.kills,
       }))
       .sort((a, b) => {
@@ -182,7 +191,7 @@ export default function Championship() {
                   </tr>
                 </thead>
                 <tbody>
-                  {INITIAL_STANDINGS.sort((a, b) => b.points - a.points).map((standing, idx) => {
+                  {standings.map((standing, idx) => {
                     const teamObj = TEAMS.find((t) => t.name === standing.team);
                     const teamColor = teamObj?.color || "from-slate-600 to-slate-500";
                     return (
@@ -190,7 +199,19 @@ export default function Championship() {
                         <td className="py-3 px-4 font-bold text-amber-400">{idx + 1}º</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: teamColor }}></div>
+                            <div className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded overflow-hidden">
+                              {teamObj?.logo && (
+                                <img 
+                                  src={teamObj.logo} 
+                                  alt={standing.team} 
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[10px] font-bold text-primary/40">${standing.team[0]}</span>`;
+                                  }}
+                                />
+                              )}
+                            </div>
                             <span className="font-semibold">{standing.team}</span>
                           </div>
                         </td>
@@ -299,7 +320,11 @@ export default function Championship() {
                           <td className="py-3 px-4">
                             <Badge className="bg-amber-500/20 text-amber-400 border border-amber-400">#{idx + 1}</Badge>
                           </td>
-                          <td className="py-3 px-4 font-semibold">{player.name}</td>
+                          <td className="py-3 px-4 font-semibold">
+                            <Link href={`/player/${encodeURIComponent(player.name)}`} className="text-amber-400 hover:text-amber-300 transition-colors">
+                              {player.name}
+                            </Link>
+                          </td>
                           <td className="py-3 px-4">
                             <span className="text-xs px-2 py-1 rounded bg-slate-700">{player.team}</span>
                           </td>
@@ -346,7 +371,9 @@ export default function Championship() {
                           <div key={name} className="flex justify-between items-center bg-slate-700/50 rounded p-2">
                             <div className="flex items-center gap-2 flex-1">
                               <span className={`text-xs font-bold ${getMovementColor((data.movement as any) || "→")}`}>{(data.movement as any) || "→"}</span>
-                              <span className="text-sm font-semibold text-white">{name}</span>
+                              <Link href={`/player/${encodeURIComponent(name)}`} className="text-sm font-semibold text-white hover:text-amber-400 transition-colors">
+                                {name}
+                              </Link>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold px-1 py-0.5 rounded ${
@@ -371,7 +398,9 @@ export default function Championship() {
                           <div key={name} className="flex justify-between items-center bg-slate-700/50 rounded p-2">
                             <div className="flex items-center gap-2 flex-1">
                               <span className={`text-xs font-bold ${getMovementColor((data.movement as any) || "→")}`}>{(data.movement as any) || "→"}</span>
-                              <span className="text-sm font-semibold text-white">{name}</span>
+                              <Link href={`/player/${encodeURIComponent(name)}`} className="text-sm font-semibold text-white hover:text-amber-400 transition-colors">
+                                {name}
+                              </Link>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold px-1 py-0.5 rounded ${
@@ -396,7 +425,9 @@ export default function Championship() {
                           <div key={name} className="flex justify-between items-center bg-slate-700/50 rounded p-2">
                             <div className="flex items-center gap-2 flex-1">
                               <span className={`text-xs font-bold ${getMovementColor((data.movement as any) || "→")}`}>{(data.movement as any) || "→"}</span>
-                              <span className="text-sm font-semibold text-white">{name}</span>
+                              <Link href={`/player/${encodeURIComponent(name)}`} className="text-sm font-semibold text-white hover:text-amber-400 transition-colors">
+                                {name}
+                              </Link>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold px-1 py-0.5 rounded ${
@@ -421,7 +452,9 @@ export default function Championship() {
                           <div key={name} className="flex justify-between items-center bg-slate-700/50 rounded p-2">
                             <div className="flex items-center gap-2 flex-1">
                               <span className={`text-xs font-bold ${getMovementColor((data.movement as any) || "→")}`}>{(data.movement as any) || "→"}</span>
-                              <span className="text-sm font-semibold text-white text-xs">{name}</span>
+                              <Link href={`/player/${encodeURIComponent(name)}`} className="text-sm font-semibold text-white hover:text-amber-400 transition-colors text-xs">
+                                {name}
+                              </Link>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold px-1 py-0.5 rounded ${
@@ -446,7 +479,9 @@ export default function Championship() {
                           <div key={name} className="flex justify-between items-center bg-slate-700/50 rounded p-2">
                             <div className="flex items-center gap-2 flex-1">
                               <span className={`text-xs font-bold ${getMovementColor((data.movement as any) || "→")}`}>{(data.movement as any) || "→"}</span>
-                              <span className="text-sm font-semibold text-white text-xs">{name}</span>
+                              <Link href={`/player/${encodeURIComponent(name)}`} className="text-sm font-semibold text-white hover:text-amber-400 transition-colors text-xs">
+                                {name}
+                              </Link>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold px-1 py-0.5 rounded ${
@@ -597,9 +632,21 @@ export default function Championship() {
                         <CardTitle className="text-amber-400">Rodada {match.round}</CardTitle>
                         <CardDescription>{match.date} • Mapa: {match.map}</CardDescription>
                       </div>
-                      <Badge className="bg-green-500/20 text-green-400 border border-green-400">
-                        {match.winner}
-                      </Badge>
+                      <div className="flex items-center gap-3">
+                        {match.matchUrl && (
+                          <a 
+                            href={match.matchUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50"
+                          >
+                            FACEIT <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        <Badge className="bg-green-500/20 text-green-400 border border-green-400">
+                          {match.winner}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
